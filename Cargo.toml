@@ -1,0 +1,26 @@
+[package]
+name = "rust-backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+data_race_generator = { path = "external/wgslsmith-flow/crates/data_race_generator" }
+harness = { path = "external/wgslsmith-flow/crates/harness" }
+ast = { path = "external/wgslsmith-flow/crates/ast" }
+color-eyre = "0.6.1"
+eyre = "0.6.8"
+rand = "0.8.5"
+chrono = "0.4.9"
+serde = "1.0.164"
+json = "0.12.4"
+rocket_cors = "0.5.2"
+
+[dependencies.rocket]
+version = "=0.5.0-rc.3"
+features = ["json"]
+
+[dependencies.clap]
+version = "3.0"
+features = ["derive"]
