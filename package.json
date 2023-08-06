@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently new \"next dev\" \"cargo run\"",
+    "dev": "concurrently \"next dev\" \"cargo run\"",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently \"next start -p 3001\" \"cargo run\"",
     "lint": "next lint"
   },
   "dependencies": {

@@ -157,7 +157,7 @@ export default function Home() {
           "Access-Control-Allow-Origin": "*",
       }
     };
-    const res = await axios.put('http://127.0.0.1:8000/shader', parameters, axiosConfig);
+    const res = await axios.put('https://seagull.be.ucsc.edu/race_api/shader', parameters, axiosConfig);
 
     setShaders({"shaders": res.data, set_parameters: parameters});
   }
@@ -181,7 +181,7 @@ export default function Home() {
       }
     };
 
-    const submit = await axios.put('http://127.0.0.1:8000/submission', JSON.stringify({
+    const submit = await axios.put('https://seagull.be.ucsc.edu/race_api/submission', JSON.stringify({
       vendor: video_card_info.vendor,
       renderer: video_card_info.renderer,
       parameters: parameters,
