@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress } from '@nextui-org/react';
+import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, getKeyValue } from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import axios from 'axios';
 import run_shader from './shader';
@@ -209,12 +209,12 @@ export default function Home() {
           <Col> 
 
           <Row>
-            <Textarea rows={18} cols={100} placeholder="Safe Shader" readOnly value={shaders.shaders.safe} />
+            <Textarea rows={18} cols={100} label="Safe Shader" placeholder="Safe Shader" readOnly value={shaders.shaders.safe} />
           </Row>
           <Spacer y={1}/>
 
           <Row>
-            <Textarea rows={18} cols={100} placeholder="Race Shader" readOnly value={shaders.shaders.race} />
+            <Textarea rows={18} cols={100} label="Race Shader" placeholder="Race Shader" readOnly value={shaders.shaders.race} />
           </Row>
           </Col>
           <Spacer x={2}/>
@@ -255,7 +255,7 @@ export default function Home() {
 
       </Row>
       <Spacer y={2}/>
-      
+      <Spacer y={2}/>
 
       <Text>
       Disclaimer: This research project involves the collection of anonymous hardware data. Including your GPU model, etc.
