@@ -1,16 +1,34 @@
 'use client';
 
-import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, getKeyValue } from '@nextui-org/react';
-import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress} from '@nextui-org/react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import axios from 'axios';
 import run_shader from './shader';
 import analyze from './analyze_results';
 import getVideoCardInfo from './get_gpu';
+import { Table } from '@nextui-org/react';
+import { any } from 'prop-types';
 
 function getRandomArbitrary(min: any, max: any) {
   return Math.floor(Math.random() * (max - min) + min);
 }
 
+  const random = () => {
+    return {
+      "seed" : 0,
+      "workgroups" : getRandomArbitrary(1,128),
+      "workgroup_size" : getRandomArbitrary(1,128),
+      "racy_loc_pct" : getRandomArbitrary(1,50),
+      "racy_constant_loc_pct" : getRandomArbitrary(1, 50),
+      "racy_var_pct" : getRandomArbitrary(1, 50),
+      "num_lits" : getRandomArbitrary(1, 100),
+      "stmts" : getRandomArbitrary(1, 100),
+      "vars" : getRandomArbitrary(1, 100),
+      "locs_per_thread" : getRandomArbitrary(1, 100),
+      "constant_locs" : getRandomArbitrary(1, 100),
+      "race_val_strat" : Math.random() > 0.5 ? "Odd" : "Even",
+    }
+  }
 const ParameterBox = forwardRef((props, _ref: any) => {
   let parameter_presets = {
     "basic" : {
@@ -25,7 +43,6 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "vars" : 8,
       "locs_per_thread" : 8,
       "constant_locs" : 16,
-      "reps": 1,
       "race_val_strat" : "Odd"
     },
     "stress" : {
@@ -40,28 +57,10 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "vars" : 80,
       "locs_per_thread" : 80,
       "constant_locs" : 160,
-      "reps": 10,
       "race_val_strat" : "Odd"
     }
   };
 
-  const random = () => {
-    return {
-      "seed" : 0,
-      "workgroups" : getRandomArbitrary(1,128),
-      "workgroup_size" : getRandomArbitrary(1,128),
-      "racy_loc_pct" : getRandomArbitrary(1,500),
-      "racy_constant_loc_pct" : getRandomArbitrary(1, 500),
-      "racy_var_pct" : getRandomArbitrary(1, 500),
-      "num_lits" : getRandomArbitrary(1, 100),
-      "stmts" : getRandomArbitrary(1, 100),
-      "vars" : getRandomArbitrary(1, 100),
-      "locs_per_thread" : getRandomArbitrary(1, 100),
-      "constant_locs" : getRandomArbitrary(1, 100),
-      "reps": getRandomArbitrary(1, 100),
-      "race_val_strat" : Math.random() > 0.5 ? "Odd" : "Even",
-    }
-  }
 
 
   let [parameters, setParameter] = useState(parameter_presets.basic);
@@ -69,6 +68,9 @@ const ParameterBox = forwardRef((props, _ref: any) => {
   useImperativeHandle(_ref, () => ({
     getParameters: () => {
       return parameters;
+    },
+    setParameters: () => {
+      return setParameter;
     }
   }));
 
@@ -103,8 +105,6 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Input type="number" label="locs per thread" value={parameters.locs_per_thread} onChange={e => {setParameter({...parameters, "locs_per_thread" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
           <Input type="number" label="constant locs" value={parameters.constant_locs} onChange={e => {setParameter({...parameters, "constant_locs" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
-          <Spacer />
-          <Input type="number" label="reps" value={parameters.reps} onChange={e => {setParameter({...parameters, "reps" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
           <Radio.Group label="Options" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
             <Radio value="Odd">Odd</Radio>
@@ -141,13 +141,39 @@ export default function Home() {
   let [iterations, setIterations] = useState(100);
   let [elapsed, setElapsed] = useState(0);
   let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
+  let [rows, setRows] = useState<any>([]);
+  let [reps, setReps] = useState<any>(100);
+  let [username, setName] = useState("");
+  const stop = React.useRef(true);
   const parameterRef = useRef<any>();
+    
+  const delay = ms => new Promise(res => setTimeout(res, ms));
 
   const getParameterState: any = () => {
     const parameters = parameterRef.current.getParameters();
     return parameters;
   }
-  
+ 
+  const setParameterState: any = (parameters) => {
+    parameterRef.current.setParameters()(parameters);
+  }
+
+  const setRandom = () => {
+    let parameters = random();
+    setParameterState(parameters);
+
+    return parameters;
+  }
+
+  const addRow = (id, parameters, name, mismatches) => {
+    setRows(a => [...a, {
+      key: id,
+      run: id,
+      name: name,
+      mismatches: mismatches,
+    }]);
+  }
+
   const getShader = async() => {
     const parameters = getParameterState();
     parameters.strategy = (parameters.strategy === "Even" ? false : true);
@@ -160,19 +186,47 @@ export default function Home() {
     const res = await axios.put('https://seagull.be.ucsc.edu/race_api/shader', parameters, axiosConfig);
 
     setShaders({"shaders": res.data, set_parameters: parameters});
+
+    return res.data;
   }
-  const runShader = async () => {
-    const parameters = getParameterState();
+  
+  const runShader = async (i, parameters, shader) => {
+    stop.current = false;
+    setIterations(reps);
 
     let video_card_info = getVideoCardInfo();
-    let mismatches: any[] = [];
-    for (let i = 0; i < iterations; i++) {
-      let arr_safe = await run_shader(shaders.shaders.safe, shaders.set_parameters);
-      let arr_race = await run_shader(shaders.shaders.race, shaders.set_parameters);
-      
-      setElapsed(100 * (i + 1) / iterations);
-      mismatches.concat(analyze(arr_safe, arr_race, shaders.set_parameters, shaders.shaders.info, i));
+
+      if (!("gpu" in navigator)) {
+        alert(
+            "WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag."
+        );
+        return {parameters: "None"};
     }
+
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      alert("Failed to get GPU adapter.");
+      return {parameters: "None"};
+    }
+    
+    let total = 0;
+    for (let i = 0; i < reps; i++) {
+	if (stop.current === true) {
+	  break;
+	}
+      try {
+        let arr_safe = await run_shader(shader.safe, parameters);
+        let arr_race = await run_shader(shader.race, parameters);  
+
+        setElapsed(100 * (i + 1) / reps);
+        total += analyze(arr_safe, arr_race, parameters, shader.info, i).length;
+      } catch (e) {
+	console.log("Error running shader trying again...", e);
+        await delay(5000);
+        continue;
+      };
+    }
+    
 
     let axiosConfig = {
       headers: {
@@ -180,15 +234,62 @@ export default function Home() {
           "Access-Control-Allow-Origin": "*",
       }
     };
-
     const submit = await axios.put('https://seagull.be.ucsc.edu/race_api/submission', JSON.stringify({
       vendor: video_card_info.vendor,
       renderer: video_card_info.renderer,
       parameters: parameters,
-      data_race_info: shaders.shaders.info,
-      mismatches: mismatches
+      reps: reps,
+      data_race_info: shader.info,
+      mismatches: total,
+      name: username
     }), axiosConfig);
+
+    
+    addRow(i, parameters, submit.data, total);
+ 
+    return {
+      "parameters" : parameters, 
+      "name" : "hi", 
+      "mismatches" : total
+    }
   }
+
+  const runRandom = async () => {
+    let i = rows.length + 1;
+    while(true) {
+      let parameters = await setRandom();
+
+      let shaders = await getShader();
+
+      //let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
+      let obj = await runShader(i, parameters, shaders);
+
+      i+=1;
+      if (obj.parameters === "None") {
+        return;
+      }
+
+      if (stop.current === true) {
+	return;
+      }
+    }
+  }
+
+  const columns = [
+    {
+      key: "run",
+      label: "RUN",
+    },
+    {
+      key: "name",
+      label: "NAME",
+    },
+    {
+      key: "mismatches",
+      label: "MISMATCH COUNT",
+    },
+  ];
+
 
   return (
     <Container>
@@ -223,14 +324,25 @@ export default function Home() {
       <Spacer y={2}/>
       <Row>
         <Col>
-          <Text> Iterations: </Text>
-          <Input type="number" value={iterations} onChange={(e) => {setIterations(Number(e.target.value))}}/>
+          <Row>
+	  <Input label="name" type="text" value={username} onChange={e => {setName(e.target.value)}}  />
+            <Spacer x={0.5}/>
+	  <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
+          </Row>
           <Spacer y={0.5}/>
           <Row>
-            <Button css={{"background" : "#03c03c"}} onPress={() => {runShader()}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
+            <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
             <Spacer x={0.5}/>
             <Button onPress={() => {getShader()}}> Fetch </Button>
+            <Spacer x={0.5}/>
+            <Button onPress={() => {runRandom()}}> Run Random </Button>
           </Row>
+          <Spacer y={0.5}/>
+	  <Row>
+          <Button css={{"background" : "#ff0000"}} onPress={() => {stop.current = true}} disabled={stop.current}> Stop </Button>
+            <Spacer x={0.5}/>
+	  </Row>
+	  
         </Col>
         <Spacer x={1}/>
         <Col>
@@ -255,15 +367,29 @@ export default function Home() {
 
       </Row>
       <Spacer y={2}/>
-      <Spacer y={2}/>
 
+      <Table> 
+        <Table.Header columns={columns}>
+          {(column) => (
+            <Table.Column key={column.key}>{column.label}</Table.Column>
+          )}
+        </Table.Header>
+        <Table.Body items={rows} >
+          {(item) => (
+            <Table.Row key={item.key}>
+              {(columnKey) => <Table.Cell>{item[columnKey]}</Table.Cell>}
+            </Table.Row>
+          )}
+        </Table.Body>
+      </Table>
+      <Spacer y={2}/>
       <Text>
       Disclaimer: This research project involves the collection of anonymous hardware data. Including your GPU model, etc.
       No personally identifiable information will be gathered. Your participation is voluntary.
       If you have any questions or concerns, please reach out to us at [Your contact information]. Thank you for contributing to our research efforts.
       </Text>
       <Spacer y={2}/>
-
   </Container>
   )
 }
+

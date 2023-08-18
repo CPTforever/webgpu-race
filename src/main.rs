@@ -20,7 +20,8 @@ use std::io::Write;
 pub struct CORS;
 use std::fs::create_dir;
 use std::time::{SystemTime, UNIX_EPOCH};
-
+use rusqlite::{Connection, Result};
+use rocket::serde::json::to_string;
 
 #[rocket::async_trait]
 impl Fairing for CORS {
@@ -55,7 +56,6 @@ struct Options {
     vars: u32,
     locs_per_thread: u32,
     constant_locs: u32,
-    reps: u32,
     race_val_strat: String
 }
 
@@ -84,12 +84,14 @@ struct ShaderSubmission  {
     renderer: String, 
     parameters: Options,
     data_race_info: DataRaceInfo,
-    mismatches: String,
+    reps: u32,
+    mismatches: u64,
+    name: String,
 }
 
 
-#[put("/submission", data="<submission>")]
-fn submit_shader(submission: String) -> Status {
+#[put("/submission", data="<data>")]
+fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     let mut rng = rand::thread_rng();
     let start = SystemTime::now();
     let since_the_epoch = start
@@ -97,10 +99,21 @@ fn submit_shader(submission: String) -> Status {
         .expect("Time went backwards");
     let n2 : u32 = rng.gen(); // Prevent collisons of file names 
 
-    let mut f = File::create(&format!("./outcomes/{}-{}.json", since_the_epoch.as_millis(), n2)).expect("Unable to create file");
-    f.write_all(submission.as_bytes()).expect("Unable to write data");
+    let conn = Connection::open("./outcomes/outcomes.db").unwrap();
 
-    Status::Ok
+    conn.execute(
+        "INSERT INTO results (NAME, REPS, MISMATCHES, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        (&data.name,
+         data.reps,
+         data.mismatches,
+         to_string(&data.parameters).unwrap(),
+         to_string(&data.data_race_info).unwrap(),
+         &data.vendor,
+         &data.renderer)
+    ).unwrap();
+
+    
+    format!("./outcomes/{}-{}.json", since_the_epoch.as_millis(), n2)
 }
 
 #[options("/shader")]
@@ -149,6 +162,18 @@ fn get_shader(settings: Json<Options>) -> Json<ShaderResponse> {
 #[launch]
 fn rocket() -> _ {
     create_dir("./outcomes");
+    let conn = Connection::open("./outcomes/outcomes.db").unwrap();
+
+    conn.execute("CREATE TABLE IF NOT EXISTS results (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            NAME            TEXT,
+            REPS            INTEGER     NOT NULL,
+            MISMATCHES      INTEGER     NOT NULL,
+            PARAMETERS      TEXT        NOT NULL,
+            DATA_RACE_INFO  TEXT        NOT NULL,
+            VENDOR          TEXT,
+            RENDERER        TEXT
+        );", ()).unwrap();
 
     rocket::build()
         .mount("/", routes![get_shader, cors_check_options, cors_check_options2, submit_shader])
