@@ -155,7 +155,7 @@ fn get_shader(settings: Json<Options>) -> Json<ShaderResponse> {
         race: race_str,
         info: data_race_info
     };
-
+    
     rocket::serde::json::Json(response)
 }
 

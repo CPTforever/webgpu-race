@@ -1,6 +1,7 @@
 
 
 export default async function run_shader(shader, shader_info) {
+    console.log(shader, shader_info);
     if (!("gpu" in navigator)) {
         console.log(
             "WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag."
@@ -16,25 +17,25 @@ export default async function run_shader(shader, shader_info) {
     const device = await adapter.requestDevice();
 
     let size = ((shader_info.workgroup_size * shader_info.workgroups * shader_info.locs_per_thread) + shader_info.constant_locs) * 4;
-    const Array = new Uint8Array(size);
+    const arr = new Uint8Array(size);
 
     const gpuBufferArray = device.createBuffer({
         mappedAtCreation: true,
-        size: Array.byteLength,
+        size: arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     });
 
     const arrayBufferArray = gpuBufferArray.getMappedRange();
-
-    for (let i = 0; i < Array.byteLength; i++) {
-        if (i % 4) {
-            arrayBufferArray[i] = shader_info.race_val_strat ? 2 : 1;
+    for (let i = 0; i < arr.byteLength; i++) {
+        if (i % 4 == 0) {
+            arr[i] = shader_info.race_val_strat === "Odd" ? 1 : 2;
         }
         else {
-            arrayBufferArray[i] = 0;
+            arr[i] = 0;
         }
     }
 
+    new Uint8Array(arrayBufferArray).set(arr);
     gpuBufferArray.unmap();
 
     const bindGroupLayout = device.createBindGroupLayout({
@@ -87,7 +88,7 @@ export default async function run_shader(shader, shader_info) {
     //const arrayBuffer = gpuReadBuffer.getMappedRange();
     //console.log(new Float32Array(arrayBuffer));
     const gpuReadBuffer = device.createBuffer({
-        size: Array.byteLength,
+        size: arr.byteLength,
         usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       });
 
@@ -96,7 +97,7 @@ export default async function run_shader(shader, shader_info) {
     0 /* source offset */,
     gpuReadBuffer /* destination buffer */,
     0 /* destination offset */,
-    Array.byteLength /* size */
+    arr.byteLength /* size */
     );
 
     const gpuCommands = commandEncoder.finish();
@@ -104,9 +105,8 @@ export default async function run_shader(shader, shader_info) {
 
     await gpuReadBuffer.mapAsync(GPUMapMode.READ);
     const arrayBuffer = gpuReadBuffer.getMappedRange();
-    const x = new Uint8Array(arrayBuffer);
 
-    let array32 = new Uint32Array(x.buffer);
+    let array32 = new Uint32Array(arrayBuffer);
 
     return array32;
 }

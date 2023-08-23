@@ -1,7 +1,8 @@
 export default function analyze(safe_array, race_array, parameters, data_race_info, rep) {
+    console.log(parameters, data_race_info);
     let mismatches = [];
     for (let const_index = 0; const_index < parameters.constant_locs; const_index+=1) {
-        if (const_index in data_race_info.safe_constants && safe_array[const_index] != race_array[const_index]) {
+        if (data_race_info.safe_constants.includes(const_index) && safe_array[const_index] != race_array[const_index]) {
             mismatches.push({
                 rep: rep,
                 thread: null,
@@ -18,7 +19,7 @@ export default function analyze(safe_array, race_array, parameters, data_race_in
                 expected: "Even",
                 actual: race_array[const_index]
             })
-        } 
+        }
     }
 
     let num_threads = parameters.workgroups * parameters.workgroup_size;
@@ -26,7 +27,7 @@ export default function analyze(safe_array, race_array, parameters, data_race_in
         for (let offset = 0; offset < parameters.locs_per_thread; offset++) {
             let index  = (thread_id * parameters.locs_per_thread) + offset + data_race_info.constant_locs;
 
-            if (offset in data_race_info.safe && safe_array[index] != race_array[index])  {
+            if (data_race_info.safe.includes(offset) && safe_array[index] != race_array[index])  {
                 mismatches.push({
                     rep: rep,
                     thread: thread_id,
@@ -46,6 +47,9 @@ export default function analyze(safe_array, race_array, parameters, data_race_in
             } 
         }
     }
+    console.log(mismatches);
+    console.log(safe_array);
+    console.log(race_array);
     
     return mismatches;
 }

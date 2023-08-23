@@ -174,8 +174,7 @@ export default function Home() {
     }]);
   }
 
-  const getShader = async() => {
-    const parameters = getParameterState();
+  const getShader = async(parameters) => {
     parameters.strategy = (parameters.strategy === "Even" ? false : true);
     let axiosConfig = {
       headers: {
@@ -186,6 +185,8 @@ export default function Home() {
     const res = await axios.put('https://seagull.be.ucsc.edu/race_api/shader', parameters, axiosConfig);
 
     setShaders({"shaders": res.data, set_parameters: parameters});
+
+    console.log("Response: ", res.data);
 
     return res.data;
   }
@@ -249,7 +250,6 @@ export default function Home() {
  
     return {
       "parameters" : parameters, 
-      "name" : "hi", 
       "mismatches" : total
     }
   }
@@ -257,12 +257,12 @@ export default function Home() {
   const runRandom = async () => {
     let i = rows.length + 1;
     while(true) {
-      let parameters = await setRandom();
+      let parameters_x = await setRandom();
 
-      let shaders = await getShader();
+      let shaders_x = await getShader(parameters_x);
 
       //let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
-      let obj = await runShader(i, parameters, shaders);
+      let obj = await runShader(i, parameters_x, shaders_x);
 
       i+=1;
       if (obj.parameters === "None") {
