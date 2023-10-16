@@ -56,6 +56,11 @@ struct Options {
     vars: u32,
     locs_per_thread: u32,
     constant_locs: u32,
+    block_max_stmts: u32,
+    block_max_nest_level: u32,
+    max_loop_iter: u32,
+    oob_pct: u32,
+    else_chance: u32,
     race_val_strat: String
 }
 
@@ -89,7 +94,6 @@ struct ShaderSubmission  {
     name: String,
 }
 
-
 #[put("/submission", data="<data>")]
 fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     let mut rng = rand::thread_rng();
@@ -116,6 +120,37 @@ fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     format!("./outcomes/{}-{}.json", since_the_epoch.as_millis(), n2)
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct ListEntry {
+    vendor: String,
+    renderer: String,
+    parameters: String,
+    mismatches: u64
+}
+
+#[get("/shader")]
+fn get_shader() -> Json<Vec<ListEntry>> { 
+    let conn = Connection::open("./outcomes/outcomes.db").unwrap();
+    
+    let mut stmt =  conn.prepare("SELECT MISMATCHES, VENDOR, RENDERER, PARAMETERS FROM results WHERE MISMATCHES > 0;").expect("Good things.");
+    
+    let v = stmt.query_map((), |row| {
+        Ok(ListEntry {
+            mismatches: row.get(0).expect("mismatches failed"),   
+            vendor: row.get(1).expect("mismatches failed"),   
+            renderer: row.get(2).expect("mismatches failed"),
+            parameters: row.get(3).expect("mismatches failed"),   
+        })
+    }).expect("bad things");
+    
+    let mut x = Vec::<ListEntry>::new();
+    for entry in v {
+        x.push(entry.expect("Entry"));
+    }
+    return rocket::serde::json::Json(x);
+}
+
 #[options("/shader")]
 fn cors_check_options() -> Status {
     Status::Ok
@@ -127,12 +162,16 @@ fn cors_check_options2() -> Status {
 }
 
 #[put("/shader", format = "application/json", data="<settings>")]
-fn get_shader(settings: Json<Options>) -> Json<ShaderResponse> {
+fn put_shader(settings: Json<Options>) -> Json<ShaderResponse> {
     let gen_options = GenOptions {
         seed: settings.seed,
         workgroup_size: settings.workgroup_size,
         racy_loc_pct: settings.racy_loc_pct,
         racy_constant_loc_pct: settings.racy_constant_loc_pct,
+        block_max_stmts: settings.block_max_stmts,
+        block_max_nest_level: settings.block_max_nest_level,
+        else_chance: settings.else_chance,
+        max_loop_iter: settings.max_loop_iter,
         racy_var_pct: settings.racy_var_pct,
         num_lits: settings.num_lits,
         stmts: settings.stmts,
@@ -142,7 +181,8 @@ fn get_shader(settings: Json<Options>) -> Json<ShaderResponse> {
         race_val_strat: match settings.race_val_strat.as_str() {
             "Even" => Option::Some(RaceValueStrategy::Even),
             _ => None,
-        }
+        },
+        oob_pct: settings.oob_pct,
     };
 
     let (safe_str, race_str, data_race_info) = match generate(gen_options) {
@@ -158,6 +198,7 @@ fn get_shader(settings: Json<Options>) -> Json<ShaderResponse> {
     
     rocket::serde::json::Json(response)
 }
+
 
 #[launch]
 fn rocket() -> _ {
@@ -176,19 +217,14 @@ fn rocket() -> _ {
         );", ()).unwrap();
 
     rocket::build()
-        .mount("/", routes![get_shader, cors_check_options, cors_check_options2, submit_shader])
+        .mount("/", routes![get_shader, put_shader, cors_check_options, cors_check_options2, submit_shader])
         .attach(CORS)
 
 }
 
 
 fn generate(gen_options: GenOptions) -> Result<(String, String, DataRaceInfo), Box<dyn Error>> {
-    let seed: u64 = match gen_options.seed {
-       0 => OsRng.gen(),
-       _ => gen_options.seed
-    };
-    
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = StdRng::seed_from_u64(gen_options.seed);
 
     let out = data_race_generator::Generator::new(&mut rng, gen_options).gen_module();
 
