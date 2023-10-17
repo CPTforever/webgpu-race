@@ -26,14 +26,13 @@ function getRandomArbitrary(min: any, max: any) {
       "vars" : getRandomArbitrary(1, 400),
       "locs_per_thread" : getRandomArbitrary(1, 400),
       "constant_locs" : getRandomArbitrary(1, 400),
-      "race_val_strat" : Math.random() > 0.5 ? "Odd" : "Even",
-      "cond_pct" : getRandomArbitrary(1, 100),
+      "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
       "else_chance" : getRandomArbitrary(1, 100),
 
-      "block_max_stmts" : getRandomArbitrary(1, 100),
-      "block_max_nest_level" : getRandomArbitrary(1, 100),
+      "block_max_stmts" : getRandomArbitrary(4, 25),
+      "block_max_nest_level" : 3,
       "oob_pct" : getRandomArbitrary(1, 100),
-      "max_loop_iter" : getRandomArbitrary(1, 100),
+      "max_loop_iter" : 10
     }
   }
 const ParameterBox = forwardRef((props, _ref: any) => {
@@ -44,20 +43,18 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "workgroup_size" : 1,
       "racy_loc_pct" : 50,
       "racy_constant_loc_pct" : 50,
+      "else_chance": 50,
       "racy_var_pct" : 50,
       "num_lits" : 4,
       "stmts" : 8,
       "vars" : 8,
       "locs_per_thread" : 8,
       "constant_locs" : 16,
-      "race_val_strat" : "Odd",
-      "break_chance" : 50,
-      "cond_pct" : 50,
-      "else_chance" : 50,
+      "race_val_strat" : "None",
 
       "block_max_stmts" : 4,
-      "block_max_nest_level" : 4,
-      "oob_pct" : 50,
+      "block_max_nest_level" : 1,
+      "oob_pct" : 0,
       "max_loop_iter" : 10,
     },
     "stress" : {
@@ -72,15 +69,13 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "vars" : 80,
       "locs_per_thread" : 80,
       "constant_locs" : 160,
-      "race_val_strat" : "Odd",
-      "break_chance" : 50,
-      "cond_pct" : 50,
+      "race_val_strat" : "Even",
       "else_chance" : 50,
 
       "block_max_stmts" : 50,
-      "block_max_nest_level" : 10,
-      "oob_pct" : 75,
-      "max_loop_iter" : 100,
+      "block_max_nest_level" : 3,
+      "oob_pct" : 0,
+      "max_loop_iter" : 10,
     }
   };
 
@@ -111,42 +106,38 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Workgroups" value={parameters.workgroups} onChange={e => {setParameter({...parameters, "workgroups" :  Math.max(Math.min(Number(e.target.value), 128), 0)})}} />
           <Spacer />
-          <Input type="number" label="Workgroup_Size" value={parameters.workgroup_size} onChange={e => {setParameter({...parameters, "workgroup_size" : Math.max(Math.min(Number(e.target.value), 128), 0)})}} />
+          <Input type="number" label="Workgroup Size" value={parameters.workgroup_size} onChange={e => {setParameter({...parameters, "workgroup_size" : Math.max(Math.min(Number(e.target.value), 128), 0)})}} />
           <Spacer />
-          <Input type="number" label="racy loc %" value={parameters.racy_loc_pct} onChange={e => {setParameter({...parameters, "racy_loc_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Racy Location Pct" value={parameters.racy_loc_pct} onChange={e => {setParameter({...parameters, "racy_loc_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="racy constant loc %" value={parameters.racy_constant_loc_pct} onChange={e => {setParameter({...parameters, "racy_constant_loc_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Racy Constant Location Pct" value={parameters.racy_constant_loc_pct} onChange={e => {setParameter({...parameters, "racy_constant_loc_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="racy_var" value={parameters.racy_var_pct} onChange={e => {setParameter({...parameters, "racy_var_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Block Max Statements" value={parameters.block_max_stmts} onChange={e => {setParameter({...parameters, "block_max_stmts" : Math.max(Math.min(Number(e.target.value), 200), 0)})}} />
           <Spacer />
-          <Input type="number" label="lits" value={parameters.num_lits} onChange={e => {setParameter({...parameters, "num_lits" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Block Max Nest Level" value={parameters.block_max_nest_level} onChange={e => {setParameter({...parameters, "block_max_nest_level" : Math.max(Math.min(Number(e.target.value), 3), 0)})}} />
           <Spacer />
-          <Input type="number" label="stmts" value={parameters.stmts} onChange={e => {setParameter({...parameters, "stmts" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Else Chance" value={parameters.else_chance} onChange={e => {setParameter({...parameters, "else_chance" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="vars" value={parameters.vars} onChange={e => {setParameter({...parameters, "vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Max Loop Iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="locs per thread" value={parameters.locs_per_thread} onChange={e => {setParameter({...parameters, "locs_per_thread" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Racy Variable Pct" value={parameters.racy_var_pct} onChange={e => {setParameter({...parameters, "racy_var_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="constant locs" value={parameters.constant_locs} onChange={e => {setParameter({...parameters, "constant_locs" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Number of Literals" value={parameters.num_lits} onChange={e => {setParameter({...parameters, "num_lits" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
-          <Input type="number" label="break chance" value={parameters.break_chance} onChange={e => {setParameter({...parameters, "break_chance" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Number of Statements" value={parameters.stmts} onChange={e => {setParameter({...parameters, "stmts" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
-          <Input type="number" label="condition %" value={parameters.cond_pct} onChange={e => {setParameter({...parameters, "cond_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Number of Variables" value={parameters.vars} onChange={e => {setParameter({...parameters, "vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
-          <Input type="number" label="else chance" value={parameters.else_chance} onChange={e => {setParameter({...parameters, "else_chance" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Input type="number" label="Number of Locations Per Thread" value={parameters.locs_per_thread} onChange={e => {setParameter({...parameters, "locs_per_thread" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
-          <Input type="number" label="block max stmts" value={parameters.block_max_stmts} onChange={e => {setParameter({...parameters, "block_max_stmts" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Number of Constant Locations" value={parameters.constant_locs} onChange={e => {setParameter({...parameters, "constant_locs" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
-          <Input type="number" label="block max nest level" value={parameters.block_max_nest_level} onChange={e => {setParameter({...parameters, "block_max_nest_level" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
-          <Spacer />
-          <Input type="number" label="out of bounds %" value={parameters.oob_pct} onChange={e => {setParameter({...parameters, "oob_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
-          <Spacer />
-          <Input type="number" label="max loop iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
-          <Spacer />
-          <Radio.Group label="Options" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
-            <Radio value="Odd">Odd</Radio>
+          <Radio.Group label="Race Value Strategy" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
+            <Radio value="None">None</Radio>
             <Radio value="Even">Even</Radio>
           </Radio.Group>
+          <Input type="number" label="Out of Bounds Access Pct" value={parameters.oob_pct} onChange={e => {setParameter({...parameters, "oob_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Spacer />
         </Grid>
       </Card.Body>
       <Card.Divider />
@@ -176,7 +167,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
 
 export default function Home() {
   const getLoader = async() => {
-    const res = await axios.get('https://seagull.be.ucsc.edu/race_api/shader', {
+    const res = await axios.get(process.env.NEXT_PUBLIC_RACE_API + '/shader', {
       headers: {
           'Content-Type': 'application/json;charset=UTF-8',
           "Access-Control-Allow-Origin": "*",
@@ -239,8 +230,8 @@ export default function Home() {
           "Access-Control-Allow-Origin": "*",
       }
     };
-    const res = await axios.put('https://seagull.be.ucsc.edu/race_api/shader', parameters, axiosConfig);
-    
+    const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters, axiosConfig);
+
     setShaders({"shaders": res.data, set_parameters: parameters});
 
     return res.data;
@@ -248,7 +239,6 @@ export default function Home() {
   
   const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }) => {
     stop.current = false;
-    setIterations(reps);
 
     let video_card_info = getVideoCardInfo();
     if (!check_gpu()) {
@@ -265,7 +255,8 @@ export default function Home() {
         let arr_race = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
-        total += analyze(arr_safe, arr_race, parameters, shader.info, i).length;
+        let result = analyze(arr_safe, arr_race, parameters, shader.info, i);
+        total += result.length;
       } catch (e) {
         i-=1;
         console.log(e);
@@ -281,8 +272,7 @@ export default function Home() {
           "Access-Control-Allow-Origin": "*",
       }
     };
-
-    const submit = await axios.put('https://seagull.be.ucsc.edu/race_api/submission', JSON.stringify({
+    const submit = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/submission', JSON.stringify({
       vendor: video_card_info.vendor,
       renderer: video_card_info.renderer,
       parameters: parameters,
@@ -304,7 +294,7 @@ export default function Home() {
   const runRandom = async () => {
     let i = rows.length + 1;
     while(true) {
-      let parameters_x = await setRandom();
+      let parameters_x = setRandom();
 
       let shaders_x = await getShader(parameters_x);
 
@@ -358,24 +348,6 @@ export default function Home() {
 
   const fix = (parameters: string) => {
     let x = JSON.parse(parameters);
-    
-    if (x.race_val_strat === false) {
-      x.race_val_strat = "Odd";
-    }
-    else if (x.race_val_strat === true) {
-      x.race_val_strat = "Even";
-    }
-
-    if (!x.break_chance) {
-      x.break_chance = 50;
-    }
-    if (!x.cond_pct) {
-      x.cond_pct = 50;
-    }
-    if (!x.else_chance) {
-      x.else_chance = 50;
-    }
-
     return x;
   }
 
@@ -417,7 +389,7 @@ export default function Home() {
           textGradient: "75deg, $yellow600 -20%, $red600 100%",
           "text-size-adjust": "80%"
         }}>
-            Webgpu Race Conditions Test Suite
+            WebGPU Data Race Safety Testing
         </Text>
       </Row>
       <Spacer y={2}/>
@@ -452,7 +424,7 @@ export default function Home() {
           <Row>
             <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
             <Spacer x={0.5}/>
-            <Button onPress={() => {let x = getParameterState(); getShader(x)}}> Fetch </Button>
+            <Button onPress={() => {getShader(getParameterState())}}> Fetch </Button>
             <Spacer x={0.5}/>
             <Button onPress={() => {runRandom()}}> Run Random </Button>
           </Row>

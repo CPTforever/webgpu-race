@@ -7,16 +7,12 @@ use ast::{Module, FnAttr};
 use chrono::Utc;
 use data_race_generator::*;
 use rand::prelude::StdRng;
-use rand::rngs::OsRng;
 use rand::{Rng, SeedableRng};
-use rocket::form::Form;
 use rocket::serde::{json::Json, Serialize, Deserialize};
 use std::error::Error;
 use rocket::fairing::{Fairing, Info, Kind};
-use rocket::http::{Header, Method, Status};
+use rocket::http::{Header, Status};
 use rocket::{Request, Response};
-use std::fs::File;
-use std::io::Write;
 pub struct CORS;
 use std::fs::create_dir;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -50,6 +46,7 @@ struct Options {
     workgroup_size: u32,
     racy_loc_pct: u32,
     racy_constant_loc_pct: u32,
+    else_chance: u32,
     racy_var_pct: u32,
     num_lits: u32,
     stmts: u32,
@@ -60,7 +57,6 @@ struct Options {
     block_max_nest_level: u32,
     max_loop_iter: u32,
     oob_pct: u32,
-    else_chance: u32,
     race_val_strat: String
 }
 
