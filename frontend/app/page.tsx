@@ -112,13 +112,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Racy Constant Location Pct" value={parameters.racy_constant_loc_pct} onChange={e => {setParameter({...parameters, "racy_constant_loc_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="Block Max Statements" value={parameters.block_max_stmts} onChange={e => {setParameter({...parameters, "block_max_stmts" : Math.max(Math.min(Number(e.target.value), 200), 0)})}} />
-          <Spacer />
-          <Input type="number" label="Block Max Nest Level" value={parameters.block_max_nest_level} onChange={e => {setParameter({...parameters, "block_max_nest_level" : Math.max(Math.min(Number(e.target.value), 3), 0)})}} />
-          <Spacer />
           <Input type="number" label="Else Chance" value={parameters.else_chance} onChange={e => {setParameter({...parameters, "else_chance" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
-          <Spacer />
-          <Input type="number" label="Max Loop Iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
           <Input type="number" label="Racy Variable Pct" value={parameters.racy_var_pct} onChange={e => {setParameter({...parameters, "racy_var_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
@@ -132,12 +126,18 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Number of Constant Locations" value={parameters.constant_locs} onChange={e => {setParameter({...parameters, "constant_locs" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
+          <Input type="number" label="Block Max Statements" value={parameters.block_max_stmts} onChange={e => {setParameter({...parameters, "block_max_stmts" : Math.max(Math.min(Number(e.target.value), 200), 0)})}} />
+          <Spacer />
+          <Input type="number" label="Block Max Nest Level" value={parameters.block_max_nest_level} onChange={e => {setParameter({...parameters, "block_max_nest_level" : Math.max(Math.min(Number(e.target.value), 3), 0)})}} />
+          <Spacer />
+          <Input type="number" label="Out of Bounds Access Pct" value={parameters.oob_pct} onChange={e => {setParameter({...parameters, "oob_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Spacer />
+          <Input type="number" label="Max Loop Iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
+          <Spacer />
           <Radio.Group label="Race Value Strategy" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
             <Radio value="None">None</Radio>
             <Radio value="Even">Even</Radio>
           </Radio.Group>
-          <Input type="number" label="Out of Bounds Access Pct" value={parameters.oob_pct} onChange={e => {setParameter({...parameters, "oob_pct" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
-          <Spacer />
         </Grid>
       </Card.Body>
       <Card.Divider />
@@ -182,12 +182,11 @@ export default function Home() {
     return x;
   }
 
-  let [iterations, setIterations] = useState(10);
   let [elapsed, setElapsed] = useState(0);
   let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
   let [rows, setRows] = useState<any>([]);
   let [load_rows, setLoadRows] = useState<any>([]);
-  let [reps, setReps] = useState<any>(10);
+  let [reps, setReps] = useState(10);
   let [username, setName] = useState("");
   const stop = React.useRef(true);
   const parameterRef = useRef<any>();
@@ -255,8 +254,7 @@ export default function Home() {
         let arr_race = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
-        let result = analyze(arr_safe, arr_race, parameters, shader.info, i);
-        total += result.length;
+        total += analyze(arr_safe, arr_race, parameters, shader.info, i).length;
       } catch (e) {
         i-=1;
         console.log(e);
