@@ -43,7 +43,7 @@ export async function run_shader(shader, shader_info) {
     const arrayBufferArray = gpuBufferArray.getMappedRange();
     for (let i = 0; i < arr.byteLength; i++) {
         if (i % 4 == 0) {
-            arr[i] = shader_info.race_val_strat === "Odd" ? 1 : 2;
+            arr[i] = shader_info.race_val_strat === "Even" ? 2 : 1;
         }
         else {
             arr[i] = 0;

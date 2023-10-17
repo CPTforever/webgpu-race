@@ -28,7 +28,7 @@ export default function analyze(safe_array, race_array, parameters, data_race_in
         for (let offset = 0; offset < parameters.locs_per_thread; offset++) {
             let index  = (thread_id * parameters.locs_per_thread) + offset + data_race_info.constant_locs;
 
-            if (data_race_info.safe.includes(index) && safe_array[index] != race_array[index])  {
+            if (data_race_info.safe.includes(offset) && safe_array[index] != race_array[index])  {
                 mismatches.push({
                     rep: rep,
                     thread: thread_id,
