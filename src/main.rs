@@ -46,7 +46,6 @@ struct Options {
     workgroup_size: u32,
     racy_loc_pct: u32,
     racy_constant_loc_pct: u32,
-    else_chance: u32,
     racy_var_pct: u32,
     num_lits: u32,
     stmts: u32,
@@ -57,6 +56,7 @@ struct Options {
     block_max_nest_level: u32,
     max_loop_iter: u32,
     oob_pct: u32,
+    else_chance: u32,
     race_val_strat: String
 }
 
