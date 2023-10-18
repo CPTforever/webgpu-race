@@ -254,7 +254,9 @@ export default function Home() {
         let arr_race = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
-        total += analyze(arr_safe, arr_race, parameters, shader.info, i).length;
+        let result = analyze(arr_safe, arr_race, parameters, shader.info, i);
+        console.log(result);
+        total += result.length;
       } catch (e) {
         i-=1;
         console.log(e);

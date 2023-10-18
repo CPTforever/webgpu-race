@@ -1,6 +1,4 @@
 export default function analyze(safe_array, race_array, parameters, data_race_info, rep) {
-    console.log(safe_array, race_array);
-    console.log(data_race_info);
     let mismatches = [];
     for (let const_index = 0; const_index < parameters.constant_locs; const_index+=1) {
         if (data_race_info.safe_constants.includes(const_index) && safe_array[const_index] != race_array[const_index]) {
