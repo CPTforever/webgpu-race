@@ -121,7 +121,7 @@ export async function run_shader(shader, shader_info) {
     await gpuReadBuffer.mapAsync(GPUMapMode.READ);
     const arrayBuffer = gpuReadBuffer.getMappedRange();
 
-    let array32 = new Uint32Array(arrayBuffer);
-
+    let array32 = new Uint32Array(arrayBuffer).slice(0);
+    gpuReadBuffer.unmap();
     return array32;
 }
