@@ -222,7 +222,7 @@ fn rocket() -> _ {
 fn generate(gen_options: GenOptions) -> Result<(String, String, DataRaceInfo), Box<dyn Error>> {
     let mut rng = StdRng::seed_from_u64(gen_options.seed);
 
-    let out = data_race_generator::Generator::new(&mut rng, gen_options).gen_module();
+    let out = data_race_generator::Generator::new(&mut rng, &gen_options).gen_module();
 
     let dt = Utc::now();
 
