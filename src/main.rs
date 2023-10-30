@@ -57,7 +57,8 @@ struct Options {
     max_loop_iter: u32,
     oob_pct: u32,
     else_chance: u32,
-    race_val_strat: String
+    race_val_strat: String,
+    buf_count: u32
 }
 
 #[derive(Serialize)]
@@ -179,6 +180,7 @@ fn put_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             _ => None,
         },
         oob_pct: settings.oob_pct,
+        buf_count: settings.buf_count
     };
 
     let (safe_str, race_str, data_race_info) = match generate(gen_options) {
@@ -222,7 +224,7 @@ fn rocket() -> _ {
 fn generate(gen_options: GenOptions) -> Result<(String, String, DataRaceInfo), Box<dyn Error>> {
     let mut rng = StdRng::seed_from_u64(gen_options.seed);
 
-    let out = data_race_generator::Generator::new(&mut rng, gen_options).gen_module();
+    let out = data_race_generator::Generator::new(&mut rng, &gen_options).gen_module();
 
     let dt = Utc::now();
 
