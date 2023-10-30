@@ -1,6 +1,6 @@
  'use client';
 
-import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress} from '@nextui-org/react';
+import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox} from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import axios from 'axios';
 import { run_shader, check_gpu } from './shader';
@@ -13,26 +13,27 @@ function getRandomArbitrary(min: any, max: any) {
   return Math.floor(Math.random() * (max - min) + min);
 }
 
-  const random = () => {
+  const random = (checked: any) => {
     return {
       "seed" : getRandomArbitrary(1,18446744073709551615),
-      "workgroups" : getRandomArbitrary(1,128),
-      "workgroup_size" : getRandomArbitrary(1,128),
+      "workgroups" : getRandomArbitrary(1,32),
+      "workgroup_size" : getRandomArbitrary(1,32),
       "racy_loc_pct" : getRandomArbitrary(1,100),
       "racy_constant_loc_pct" : getRandomArbitrary(1, 100),
       "racy_var_pct" : getRandomArbitrary(1, 100),
       "num_lits" : getRandomArbitrary(1, 400),
       "stmts" : getRandomArbitrary(1, 400),
       "vars" : getRandomArbitrary(1, 400),
-      "locs_per_thread" : getRandomArbitrary(1, 400),
+      "locs_per_thread" : getRandomArbitrary(1, 100),
       "constant_locs" : getRandomArbitrary(1, 400),
       "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
       "else_chance" : getRandomArbitrary(1, 100),
 
       "block_max_stmts" : getRandomArbitrary(4, 25),
       "block_max_nest_level" : 3,
-      "oob_pct" : getRandomArbitrary(1, 100),
-      "max_loop_iter" : 10
+      "oob_pct" : checked == false ? 0 : getRandomArbitrary(0, 100),
+      "max_loop_iter" : 10,
+      "buf_count" : getRandomArbitrary(1, 4)
     }
   }
 const ParameterBox = forwardRef((props, _ref: any) => {
@@ -51,11 +52,11 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "locs_per_thread" : 8,
       "constant_locs" : 16,
       "race_val_strat" : "None",
-
       "block_max_stmts" : 4,
       "block_max_nest_level" : 1,
       "oob_pct" : 0,
       "max_loop_iter" : 10,
+      "buf_count" : 1
     },
     "stress" : {
       "seed" : 0,
@@ -76,6 +77,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "block_max_nest_level" : 3,
       "oob_pct" : 0,
       "max_loop_iter" : 10,
+      "buf_count" : 4,
     }
   };
 
@@ -134,6 +136,8 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Max Loop Iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
+          <Input type="number" label="Buffer Count" value={parameters.buf_count} onChange={e => {setParameter({...parameters, "buf_count" : Math.max(Math.min(Number(e.target.value), 4), 1)})}} />
+          <Spacer />
           <Radio.Group label="Race Value Strategy" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
             <Radio value="None">None</Radio>
             <Radio value="Even">Even</Radio>
@@ -148,7 +152,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
               <Spacer y={0.5}/>
               <Button onPress={() => {setParameter(parameter_presets.stress)}}> Stress </Button>
               <Spacer y={0.5}/>
-              <Button onPress={() => {setParameter(random())}}> Random </Button>
+              <Button onPress={() => {setParameter(random(true))}}> Random </Button>
 
           </Grid>
           <Card.Divider />
@@ -188,6 +192,9 @@ export default function Home() {
   let [load_rows, setLoadRows] = useState<any>([]);
   let [reps, setReps] = useState(10);
   let [username, setName] = useState("");
+  let [mismatches, setMismatches] = useState("");
+  let [checked, setChecked] = React.useState(false);
+
   const stop = React.useRef(true);
   const parameterRef = useRef<any>();
  
@@ -202,8 +209,9 @@ export default function Home() {
     parameterRef.current.setParameters()(parameters);
   }
 
-  const setRandom = () => {
-    let parameters = random();
+  const setRandom = (checked: any) => {
+    console.log(checked);
+    let parameters = random(checked);
     setParameterState(parameters);
 
     return parameters;
@@ -213,12 +221,13 @@ export default function Home() {
     setParameterState(parameters);
   }
 
-  const addRow = (id: any, name: any, mismatches: any) => {
+  const addRow = (id: any, name: any, total: any, mismatches: any) => {
     setRows((a: any) => [...a, {
       key: id,
       run: id,
       name: name,
-      mismatches: mismatches,
+      total: total,
+      mismatches: mismatches
     }]);
   }
 
@@ -229,6 +238,8 @@ export default function Home() {
           "Access-Control-Allow-Origin": "*",
       }
     };
+
+    console.log(parameters);
     const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters, axiosConfig);
 
     setShaders({"shaders": res.data, set_parameters: parameters});
@@ -245,18 +256,21 @@ export default function Home() {
     }
 
     let total = 0;
+    let arr = [];
     for (let i = 0; i < reps; i++) {
       if (stop.current) {
         break;
       }
       try {
-        let arr_safe = await run_shader(shader.safe, parameters);
-        let arr_race = await run_shader(shader.race, parameters);  
+        let arr_safe : any = await run_shader(shader.safe, parameters);
+        let arr_race : any = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
-        let result = analyze(arr_safe, arr_race, parameters, shader.info, i);
-        console.log(result);
-        total += result.length;
+        for (let j = 0; j < parameters.buf_count; j++) {
+          let result = analyze(arr_safe[j], arr_race[j], parameters, shader.info, i);
+          arr.push(...result);
+          total += result.length;
+        }
       } catch (e) {
         i-=1;
         console.log(e);
@@ -283,7 +297,7 @@ export default function Home() {
     }), axiosConfig);
 
     
-    addRow(i, submit.data, total);
+    addRow(i, submit.data, total, arr);
  
     return {
       "parameters" : parameters, 
@@ -294,7 +308,7 @@ export default function Home() {
   const runRandom = async () => {
     let i = rows.length + 1;
     while(true) {
-      let parameters_x = setRandom();
+      let parameters_x = setRandom(checked);
 
       let shaders_x = await getShader(parameters_x);
 
@@ -307,7 +321,7 @@ export default function Home() {
       }
 
       if (stop.current === true) {
-	return;
+	      return;
       }
     }
   }
@@ -341,9 +355,13 @@ export default function Home() {
       label: "NAME",
     },
     {
-      key: "mismatches",
+      key: "total",
       label: "MISMATCH COUNT",
     },
+    {
+      key: "actions",
+      label: "ACTIONS"
+    }
   ];
 
   const fix = (parameters: string) => {
@@ -356,15 +374,31 @@ export default function Home() {
     switch (key) {
       case "actions":
         return (
-	  <Row>
+	        <Row>
             <Button onPress={async () => {
-	      let x = item.parameters;
-	      let y = fix(x);
-	      setParameters(y);
-	      await getShader(y);
- 	    }}> Fetch </Button>
-  	  </Row>
+              let x = item.parameters;
+              let y = fix(x);
+              setParameters(y);
+              await getShader(y);
+            }}> Fetch </Button>
+  	      </Row>
         );
+      default: 
+        return cellValue;
+    }
+  }
+
+  const loadMismatches = (item: any, key: React.Key) => {
+    const cellValue = item[key];
+    switch (key) {
+      case "actions":
+        return (
+        <Button onPress = {async() => {
+          console.log("item", item["mismatches"])
+          setMismatches(JSON.stringify(item["mismatches"]));
+        }}> Load 
+        </Button>
+        )
       default: 
         return cellValue;
     }
@@ -381,6 +415,11 @@ export default function Home() {
     return () => clearInterval(interval); // This represents the unmount function, in which you need to clear your interval to prevent memory leaks.
   }, [])
 
+
+  const handleChange = () => {
+    stop.current = true;
+    setChecked(!checked);
+  };
 
   return (
     <Container >
@@ -408,6 +447,11 @@ export default function Home() {
           <Row>
             <Textarea rows={18} cols={100} label="Race Shader" placeholder="Race Shader" readOnly value={shaders.shaders.race} />
           </Row>
+          <Spacer y={1}/>
+
+          <Row>
+            <Textarea label="Mismatches" placeholder="Mismatches" readOnly value={mismatches} />
+          </Row>
           </Col>
           <Spacer x={2}/>
       </Row>
@@ -416,9 +460,14 @@ export default function Home() {
       <Row>
         <Col>
           <Row>
-	  <Input label="name" type="text" value={username} onChange={e => {setName(e.target.value)}}  />
+            <Input label="name" type="text" value={username} onChange={e => {setName(e.target.value)}}  />
             <Spacer x={0.5}/>
-	  <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
+            <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
+            <Spacer x={0.5}/>
+            <Spacer y = {0.5}/>
+            <Checkbox label="Enable Out of Bounds Accesses" onChange={handleChange}> 
+
+            </Checkbox>
           </Row>
           <Spacer y={0.5}/>
           <Row>
@@ -429,10 +478,10 @@ export default function Home() {
             <Button onPress={() => {runRandom()}}> Run Random </Button>
           </Row>
           <Spacer y={0.5}/>
-	  <Row>
-          <Button css={{"background" : "#ff0000"}} onPress={() => {stop.current = true}} disabled={stop.current}> Stop </Button>
+          <Row>
+            <Button css={{"background" : "#ff0000"}} onPress={() => {stop.current = true}} disabled={stop.current}> Stop </Button>
             <Spacer x={0.5}/>
-	  </Row>
+          </Row>
 	  
         </Col>
         <Spacer x={1}/>
@@ -490,7 +539,7 @@ export default function Home() {
         <Table.Body items={rows} >
           {(item: any) => (
             <Table.Row key={item.key}>
-              {(columnKey) => <Table.Cell>{item[columnKey]}</Table.Cell>}
+              {(columnKey) => <Table.Cell>{loadMismatches(item, columnKey)}</Table.Cell>}
             </Table.Row>
           )}
         </Table.Body>
@@ -506,7 +555,7 @@ export default function Home() {
       <Text>
       Disclaimer: This research project involves the collection of anonymous hardware data. Including your GPU model, etc.
       No personally identifiable information will be gathered. Your participation is voluntary.
-      If you have any questions or concerns, please reach out to us at [Your contact information]. Thank you for contributing to our research efforts.
+      If you have any questions or concerns, please reach out to us at <a href="https://users.soe.ucsc.edu/~tsorensen/"> https://users.soe.ucsc.edu/~tsorensen/ </a>. Thank you for contributing to our research efforts.
       </Text>
       <Spacer y={2}/>
   </Container>

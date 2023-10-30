@@ -34,47 +34,56 @@ export async function run_shader(shader, shader_info) {
     let size = ((shader_info.workgroup_size * shader_info.workgroups * shader_info.locs_per_thread) + shader_info.constant_locs) * 4;
     const arr = new Uint8Array(size);
 
-    const gpuBufferArray = device.createBuffer({
-        mappedAtCreation: true,
-        size: arr.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
-    });
+    let gpuBuffers = [];
+    for (let i = 0; i < shader_info.buf_count; i++) {
+        gpuBuffers.push(device.createBuffer({
+            mappedAtCreation: true,
+            size: arr.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
+        }));
+    
+        const arrayBufferArray = gpuBuffers[i].getMappedRange();
+        for (let i = 0; i < arr.byteLength; i++) {
+            if (i % 4 == 0) {
+                arr[i] = shader_info.race_val_strat === "Even" ? 2 : 1;
+            }
+            else {
+                arr[i] = 0;
+            }
+        }
+    
+        new Uint8Array(arrayBufferArray).set(arr);
 
-    const arrayBufferArray = gpuBufferArray.getMappedRange();
-    for (let i = 0; i < arr.byteLength; i++) {
-        if (i % 4 == 0) {
-            arr[i] = shader_info.race_val_strat === "Even" ? 2 : 1;
-        }
-        else {
-            arr[i] = 0;
-        }
+        gpuBuffers[i].unmap();
+    }
+    let layoutEntries = [];
+    for (let i = 0; i < shader_info.buf_count; i++) {
+        layoutEntries.push({
+            binding: i,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: {
+                type: "storage"
+            }
+        });
     }
 
-    new Uint8Array(arrayBufferArray).set(arr);
-    gpuBufferArray.unmap();
-
     const bindGroupLayout = device.createBindGroupLayout({
-        entries: [
-            {
-                binding: 0,
-                visibility: GPUShaderStage.COMPUTE,
-                buffer: {
-                    type: "storage"
-                }
-            }
-        ]
+        entries: layoutEntries
     });
+
+    let bindGroupEntries = [];
+    for (let i = 0; i < shader_info.buf_count; i++) {
+        bindGroupEntries.push({
+            binding: i,
+            resource: {
+                buffer: gpuBuffers[i],
+            }
+        })
+    }
 
     const bindGroup = device.createBindGroup({
         layout: bindGroupLayout,
-        entries: [
-            {
-            binding: 0,
-            resource: {
-                buffer: gpuBufferArray
-            }
-            }
-        ]
+        entries: bindGroupEntries
     });
     
     const shaderModule = device.createShaderModule({
@@ -102,26 +111,36 @@ export async function run_shader(shader, shader_info) {
     //await gpuBufferArray.mapAsync(GPUMapMode.READ);
     //const arrayBuffer = gpuReadBuffer.getMappedRange();
     //console.log(new Float32Array(arrayBuffer));
-    const gpuReadBuffer = device.createBuffer({
-        size: arr.byteLength,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-      });
+    let readBuffers = [];
+    for (let i = 0; i < shader_info.buf_count; i++) {
+        readBuffers.push(device.createBuffer({
+            size: arr.byteLength,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        }));
 
-    commandEncoder.copyBufferToBuffer(
-    gpuBufferArray /* source buffer */,
-    0 /* source offset */,
-    gpuReadBuffer /* destination buffer */,
-    0 /* destination offset */,
-    arr.byteLength /* size */
-    );
+        commandEncoder.copyBufferToBuffer(
+            gpuBuffers[i] /* source buffer */,
+            0 /* source offset */,
+            readBuffers[i] /* destination buffer */,
+            0 /* destination offset */,
+            arr.byteLength /* size */
+        );
+    }
 
     const gpuCommands = commandEncoder.finish();
     device.queue.submit([gpuCommands]);
 
-    await gpuReadBuffer.mapAsync(GPUMapMode.READ);
-    const arrayBuffer = gpuReadBuffer.getMappedRange();
+    let outputBuffers = [];
+    for (let i = 0; i < shader_info.buf_count; i++) {
+        await readBuffers[i].mapAsync(GPUMapMode.READ);
 
-    let array32 = new Uint32Array(arrayBuffer).slice(0);
-    gpuReadBuffer.unmap();
-    return array32;
+        const arrayBuffer = readBuffers[i].getMappedRange();
+
+        outputBuffers.push(new Uint32Array(arrayBuffer).slice(0));
+        readBuffers[i].unmap();
+    }
+
+    console.log(outputBuffers);
+
+    return outputBuffers;
 }
