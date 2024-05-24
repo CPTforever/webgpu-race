@@ -50,6 +50,7 @@ struct Options {
     num_lits: u32,
     stmts: u32,
     vars: u32,
+    uninit_vars: u32,
     locs_per_thread: u32,
     constant_locs: u32,
     block_max_stmts: u32,
@@ -58,6 +59,7 @@ struct Options {
     oob_pct: u32,
     else_chance: u32,
     race_val_strat: String,
+    pattern_weights: String,
     buf_count: u32
 }
 
@@ -78,7 +80,6 @@ struct Mismatch {
     expected: String,
 }
 
-
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 struct ShaderSubmission  {
@@ -88,6 +89,9 @@ struct ShaderSubmission  {
     data_race_info: DataRaceInfo,
     reps: u32,
     mismatches: u64,
+    oob: u64,
+    nonzero: u64,
+    uninit: u64,
     name: String,
 }
 
@@ -103,10 +107,14 @@ fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
 
     conn.execute(
-        "INSERT INTO results (NAME, REPS, MISMATCHES, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO results (NAME, REPS, MISMATCHES, OOB, NONZERO, UNINIT, TOTAL_VIOLATIONS, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         (&data.name,
          data.reps,
          data.mismatches,
+         data.oob,
+         data.nonzero,
+         data.uninit,
+         data.mismatches + data.nonzero + data.uninit,
          to_string(&data.parameters).unwrap(),
          to_string(&data.data_race_info).unwrap(),
          &data.vendor,
@@ -123,21 +131,59 @@ struct ListEntry {
     vendor: String,
     renderer: String,
     parameters: String,
-    mismatches: u64
+    mismatches: u64,
+    oob: u64,
+    nonzero: u64,
+    uninit: u64,
 }
 
-#[get("/shader")]
-fn get_shader() -> Json<Vec<ListEntry>> { 
+#[get("/shader?<query>")]
+fn get_shader(query: &str) -> Json<Vec<ListEntry>> { 
+    println!("{}", query);
+    let query_list = query.split(",");
+
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
     
-    let mut stmt =  conn.prepare("SELECT MISMATCHES, VENDOR, RENDERER, PARAMETERS FROM results WHERE MISMATCHES > 0;").expect("Good things.");
+    let mut query_string = "".to_owned();
+
+    let mut first = false;
+    for query in query_list {
+        if first {
+            query_string.push_str(" OR ");
+        }
+        if query == "mismatches" {
+            query_string.push_str("MISMATCHES > 0");
+        }
+        else if query == "uninit" {
+            query_string.push_str("UNINIT > 0");
+        }
+        else if query == "oob" {
+            query_string.push_str("OOB > 0");
+
+        }
+        else if query == "nonzero" {
+            query_string.push_str("NONZERO > 0");
+        }
+
+        first = true;        
+    }
+
+    let prepared_string = 
+        format!("SELECT MISMATCHES, OOB, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
+        {};", query_string);
+
+    println!("{}", &prepared_string);
+    let mut stmt =  conn.prepare(&prepared_string).expect("Good things.");
     
     let v = stmt.query_map((), |row| {
         Ok(ListEntry {
             mismatches: row.get(0).expect("mismatches failed"),   
-            vendor: row.get(1).expect("mismatches failed"),   
-            renderer: row.get(2).expect("mismatches failed"),
-            parameters: row.get(3).expect("mismatches failed"),   
+            oob: row.get(1).expect("mismatches failed"),   
+            nonzero: row.get(2).expect("mismatches failed"),   
+            uninit: row.get(3).expect("mismatches failed"),   
+            vendor: row.get(4).expect("mismatches failed"),   
+            renderer: row.get(5).expect("mismatches failed"),
+            parameters: row.get(6).expect("mismatches failed"),   
         })
     }).expect("bad things");
     
@@ -173,14 +219,24 @@ fn put_shader(settings: Json<Options>) -> Json<ShaderResponse> {
         num_lits: settings.num_lits,
         stmts: settings.stmts,
         vars: settings.vars,
+        uninit_vars: settings.uninit_vars,
         locs_per_thread: settings.locs_per_thread,
         constant_locs: settings.constant_locs,
         race_val_strat: match settings.race_val_strat.as_str() {
             "Even" => Option::Some(RaceValueStrategy::Even),
             _ => None,
         },
+        pattern_weights: match settings.pattern_weights.as_str() {
+            "Even" => (33, 17, 17, 33),
+            "Basic" => (100, 0, 0, 0),
+            "IntMult" => (0, 100, 0, 0),
+            "IntDiv" => (0, 0, 100, 0),
+            "Divide" => (0, 0, 0, 100),
+            _ => (33, 17, 17, 33),
+        },
         oob_pct: settings.oob_pct,
-        buf_count: settings.buf_count
+        pattern_slots: 5,
+        data_buf_size: 256
     };
 
     let (safe_str, race_str, data_race_info) = match generate(gen_options) {
@@ -205,13 +261,17 @@ fn rocket() -> _ {
 
     conn.execute("CREATE TABLE IF NOT EXISTS results (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
-            NAME            TEXT,
-            REPS            INTEGER     NOT NULL,
-            MISMATCHES      INTEGER     NOT NULL,
-            PARAMETERS      TEXT        NOT NULL,
-            DATA_RACE_INFO  TEXT        NOT NULL,
-            VENDOR          TEXT,
-            RENDERER        TEXT
+            NAME             TEXT,
+            REPS             INTEGER     NOT NULL,
+            MISMATCHES       INTEGER     NOT NULL,
+            OOB              INTEGER     NOT NULL,
+            NONZERO          INTEGER     NOT NULL,
+            UNINIT           INTEGER     NOT NULL,
+            TOTAL_VIOLATIONS INTEGER     NOT NULL,
+            PARAMETERS       TEXT        NOT NULL,
+            DATA_RACE_INFO   TEXT        NOT NULL,
+            VENDOR           TEXT,
+            RENDERER         TEXT
         );", ()).unwrap();
 
     rocket::build()

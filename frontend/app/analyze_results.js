@@ -1,4 +1,4 @@
-export default function analyze(safe_array, race_array, parameters, data_race_info, rep) {
+export function analyze(safe_array, race_array, parameters, data_race_info, rep) {
     let mismatches = [];
     for (let const_index = 0; const_index < parameters.constant_locs; const_index+=1) {
         if (data_race_info.safe_constants.includes(const_index) && safe_array[const_index] != race_array[const_index]) {
@@ -46,8 +46,18 @@ export default function analyze(safe_array, race_array, parameters, data_race_in
             } 
         }
     }
-
-    console.log(mismatches);
-    
     return mismatches;
 }
+
+export function pattern_anaylze(array) {
+    let mismatches = [];
+    let non_zero = [];
+    for (let i = 0; i < array.length; i++) {
+        if (array[i] != 0) {
+            non_zero.push([i, array[i]]);
+        }
+    }
+
+    return [mismatches, non_zero]; 
+}
+

@@ -1,19 +1,47 @@
  'use client';
 
-import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox} from '@nextui-org/react';
+import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox, Dropdown} from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import axios from 'axios';
 import { run_shader, check_gpu } from './shader';
-import analyze from './analyze_results';
+import { analyze, pattern_anaylze } from './analyze_results';
 import getVideoCardInfo from './get_gpu';
 import { Table } from '@nextui-org/react';
 import { any } from 'prop-types';
+
+function uninit_anaylze(array: any) {
+  let mismatches = [];
+  for (let i = 0; i < array.length; i++) {
+      if (array[i] != 0) {
+          mismatches.push([i, array[i]]);
+      }
+  }
+
+  return mismatches; 
+}
 
 function getRandomArbitrary(min: any, max: any) {
   return Math.floor(Math.random() * (max - min) + min);
 }
 
   const random = (checked: any) => {
+    let val = getRandomArbitrary(0, 5);
+    let pattern_weight = "Even";
+    if (val == 0) {
+      pattern_weight = "Even";
+    }
+    else if (val == 1) {
+      pattern_weight = "Basic";
+    }
+    else if (val == 2) {
+      pattern_weight = "IntMult";
+    }
+    else if (val == 3) {
+      pattern_weight = "IntDiv";
+    }
+    else if (val == 4) {
+      pattern_weight = "Divide";
+    }
     return {
       "seed" : getRandomArbitrary(1,18446744073709551615),
       "workgroups" : getRandomArbitrary(1,128),
@@ -24,11 +52,12 @@ function getRandomArbitrary(min: any, max: any) {
       "num_lits" : getRandomArbitrary(1, 16),
       "stmts" : getRandomArbitrary(1, 1000),
       "vars" : getRandomArbitrary(1, 16),
+      "uninit_vars": getRandomArbitrary(1, 200),
       "locs_per_thread" : getRandomArbitrary(1, 16),
       "constant_locs" : getRandomArbitrary(1, 16),
       "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
+      "pattern_weights" : pattern_weight,
       "else_chance" : getRandomArbitrary(0, 100),
-
       "block_max_stmts" : getRandomArbitrary(2, 100),
       "block_max_nest_level" : 3,
       "oob_pct" : checked == false ? 0 : getRandomArbitrary(0, 100),
@@ -36,7 +65,7 @@ function getRandomArbitrary(min: any, max: any) {
       "buf_count" : getRandomArbitrary(1, 4)
     }
   }
-const ParameterBox = forwardRef((props, _ref: any) => {
+
   let parameter_presets = {
     "basic" : {
       "seed" : 0,
@@ -49,9 +78,11 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "num_lits" : 4,
       "stmts" : 8,
       "vars" : 8,
+      "uninit_vars": 8,
       "locs_per_thread" : 8,
       "constant_locs" : 16,
       "race_val_strat" : "None",
+      "pattern_weights" : "Even",
       "block_max_stmts" : 4,
       "block_max_nest_level" : 1,
       "oob_pct" : 0,
@@ -68,11 +99,12 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "num_lits" : 40,
       "stmts" : 80,
       "vars" : 80,
+      "uninit_vars": 80,
       "locs_per_thread" : 80,
       "constant_locs" : 160,
       "race_val_strat" : "Even",
+      "pattern_weights" : "Even",
       "else_chance" : 50,
-
       "block_max_stmts" : 50,
       "block_max_nest_level" : 3,
       "oob_pct" : 0,
@@ -80,6 +112,8 @@ const ParameterBox = forwardRef((props, _ref: any) => {
       "buf_count" : 4,
     }
   };
+
+const ParameterBox = forwardRef((props, _ref: any) => {
 
 
 
@@ -124,6 +158,8 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Number of Variables" value={parameters.vars} onChange={e => {setParameter({...parameters, "vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
+          <Input type="number" label="Number of Uninitialized Variables" value={parameters.uninit_vars} onChange={e => {setParameter({...parameters, "uninit_vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Spacer />
           <Input type="number" label="Number of Locations Per Thread" value={parameters.locs_per_thread} onChange={e => {setParameter({...parameters, "locs_per_thread" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
           <Input type="number" label="Number of Constant Locations" value={parameters.constant_locs} onChange={e => {setParameter({...parameters, "constant_locs" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
@@ -141,6 +177,14 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Radio.Group label="Race Value Strategy" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
             <Radio value="None">None</Radio>
             <Radio value="Even">Even</Radio>
+          </Radio.Group>
+          <Spacer />
+          <Radio.Group label="Pattern Weights" value={parameters.pattern_weights} onChange={e => {setParameter({...parameters, "pattern_weights" : e})}}>
+            <Radio value="Even">Even</Radio>
+            <Radio value="Basic">Basic</Radio>
+            <Radio value="IntMult">Integer Overflow Multiplication</Radio>
+            <Radio value="IntDiv">Integer Overflow Divison</Radio>
+            <Radio value="Divide">Divide By Zero</Radio>
           </Radio.Group>
         </Grid>
       </Card.Body>
@@ -170,11 +214,14 @@ const ParameterBox = forwardRef((props, _ref: any) => {
 });
 
 export default function Home() {
-  const getLoader = async() => {
+  const getLoader = async(selected: any) => {
     const res = await axios.get(process.env.NEXT_PUBLIC_RACE_API + '/shader', {
       headers: {
           'Content-Type': 'application/json;charset=UTF-8',
           "Access-Control-Allow-Origin": "*",
+      },
+      params: {
+        query: Array.from(selected).join()
       }
     }); 
     let x = res.data;
@@ -194,7 +241,13 @@ export default function Home() {
   let [username, setName] = useState("");
   let [mismatches, setMismatches] = useState("");
   let [checked, setChecked] = React.useState(false);
+  let [selected, setSelected] = React.useState(new Set(["nonzero", "uninit"]));
 
+  const selectedValue = React.useMemo(
+    () => Array.from(selected).join(", ").replaceAll("_", " "),
+    [selected]
+  );
+  
   const stop = React.useRef(true);
   const parameterRef = useRef<any>();
  
@@ -210,7 +263,6 @@ export default function Home() {
   }
 
   const setRandom = (checked: any) => {
-    console.log(checked);
     let parameters = random(checked);
     setParameterState(parameters);
 
@@ -221,13 +273,16 @@ export default function Home() {
     setParameterState(parameters);
   }
 
-  const addRow = (id: any, name: any, total: any, mismatches: any) => {
+  const addRow = (id: any, name: any, total: any, mismatches: any, pattern_total: any, non_zero: any, uninit: any) => {
     setRows((a: any) => [...a, {
       key: id,
       run: id,
       name: name,
       total: total,
-      mismatches: mismatches
+      mismatches: mismatches,
+      pattern: pattern_total,
+      non_zero: non_zero,
+      uninit: uninit
     }]);
   }
 
@@ -239,7 +294,19 @@ export default function Home() {
       }
     };
 
-    console.log(parameters);
+    let key: string = "";
+    let new_parameters = parameters;
+    for (key in parameter_presets.basic) {
+      console.log(key);
+      if (!(key in new_parameters)) {
+        new_parameters[key] = parameter_presets.basic[key];
+      }
+    }
+
+    console.log(new_parameters);
+
+    await setParameters(new_parameters);
+
     const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters, axiosConfig);
 
     setShaders({"shaders": res.data, set_parameters: parameters});
@@ -256,21 +323,38 @@ export default function Home() {
     }
 
     let total = 0;
+    let pattern_total = 0;
+    let non_zero_total = 0; 
+    let uninit_total = 0;
     let arr = [];
+    let show_arr: any = {
+      non_zero: [],
+      uninit: [],
+    };
     for (let i = 0; i < reps; i++) {
       if (stop.current) {
         break;
       }
       try {
         let arr_safe : any = await run_shader(shader.safe, parameters);
+        await delay(50);
         let arr_race : any = await run_shader(shader.race, parameters);  
+        await delay(50);
 
         setElapsed(100 * (i + 1) / reps);
-        for (let j = 0; j < parameters.buf_count; j++) {
-          let result = analyze(arr_safe[j], arr_race[j], parameters, shader.info, i);
-          arr.push(...result);
-          total += result.length;
-        }
+
+        let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
+        let pattern_result = pattern_anaylze(arr_race[4]);
+        let uninit_result = uninit_anaylze(arr_race[1]);
+        arr.push(...result);
+        total += result.length;
+        pattern_total += pattern_result[0].length;
+        non_zero_total += pattern_result[1].length;
+        uninit_total += uninit_result.length;
+        show_arr.non_zero.push(...pattern_result[1]);
+        show_arr.uninit.push(...uninit_result);
+        console.log(pattern_result[1], uninit_result);
+        setMismatches(JSON.stringify(show_arr));
       } catch (e) {
         i-=1;
         console.log(e);
@@ -293,15 +377,19 @@ export default function Home() {
       reps: reps,
       data_race_info: shader.info,
       mismatches: total,
+      oob: pattern_total,
+      nonzero: non_zero_total,
+      uninit: uninit_total,
       name: username
     }), axiosConfig);
 
     
-    addRow(i, submit.data, total, arr);
- 
+    addRow(i, submit.data, total, arr, pattern_total, non_zero_total, uninit_total);
+    
     return {
       "parameters" : parameters, 
-      "mismatches" : total
+      "mismatches" : total,
+      "pattern" : pattern_total
     }
   }
 
@@ -340,6 +428,18 @@ export default function Home() {
       label: "MISMATCH COUNT",
     },
     {
+      key: "oob",
+      label: "OOB VIOLATIONS",
+    },
+    {
+      key: "nonzero",
+      label: "NON ZERO OOB",
+    },
+    {
+      key: "uninit",
+      label: "UNINIT VIOLATIONS",
+    },
+    {
       key: "actions",
       label: "ACTIONS",
     },
@@ -357,6 +457,18 @@ export default function Home() {
     {
       key: "total",
       label: "MISMATCH COUNT",
+    },
+    {
+      key: "pattern",
+      label: "OOB VIOLATIONS",
+    },
+    {
+      key: "non_zero",
+      label: "NON ZERO OOB",
+    },
+    {
+      key: "uninit",
+      label: "UNINIT VIOLATIONS",
     },
     {
       key: "actions",
@@ -394,7 +506,7 @@ export default function Home() {
       case "actions":
         return (
         <Button onPress = {async() => {
-          console.log("item", item["mismatches"])
+          console.log("item", cellValue)
           setMismatches(JSON.stringify(item["mismatches"]));
         }}> Load 
         </Button>
@@ -404,17 +516,6 @@ export default function Home() {
     }
   }
 
-  const MINUTE_MS = 1000;
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      let x = await getLoader();
-      setLoadRows(x);
-    }, MINUTE_MS);
-
-    return () => clearInterval(interval); // This represents the unmount function, in which you need to clear your interval to prevent memory leaks.
-  }, [])
-
 
   const handleChange = () => {
     stop.current = true;
@@ -422,7 +523,7 @@ export default function Home() {
   };
 
   return (
-    <Container >
+    <Container>
       <Row >
         <Text size={50} css={{
           textGradient: "75deg, $yellow600 -20%, $red600 100%",
@@ -450,7 +551,7 @@ export default function Home() {
           <Spacer y={1}/>
 
           <Row>
-            <Textarea label="Mismatches" placeholder="Mismatches" readOnly value={mismatches} />
+            <Textarea rows={10} cols={100} label="Mismatches" placeholder="Mismatches" readOnly value={mismatches} />
           </Row>
           </Col>
           <Spacer x={2}/>
@@ -473,7 +574,7 @@ export default function Home() {
           <Row>
             <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
             <Spacer x={0.5}/>
-            <Button onPress={() => {getShader(getParameterState())}}> Fetch </Button>
+            <Button onPress={() => {getShader(getParameterState())}}> Get Shader </Button>
             <Spacer x={0.5}/>
             <Button onPress={() => {runRandom()}}> Run Random </Button>
           </Row>
@@ -524,12 +625,35 @@ export default function Home() {
       <Table.Pagination
         shadow
         noMargin
-        align="center"
         rowsPerPage={5}
-        onPageChange={(page: any) => console.log({ page })}
+        autoResetPage
       />
       </Table>
+      <Spacer x={0.5}/>
+      <Row>
+          <Button onPress={async () => {let x = await getLoader(selected); setLoadRows(x);}}> Fetch DB </Button>
+          
+          <Spacer y={0.5}/>
 
+          <Dropdown>
+          <Dropdown.Button flat color="secondary" css={{ tt: "capitalize" }}>
+            {selectedValue}
+          </Dropdown.Button>
+          <Dropdown.Menu 
+            aria-label="Static Actions"
+            disallowEmptySelection
+            selectionMode="multiple"
+            selectedKeys={selected}
+            onSelectionChange={setSelected}
+          >
+            <Dropdown.Item key="mismatches">Mismatches</Dropdown.Item>
+            <Dropdown.Item key="oob">OOB Violations</Dropdown.Item>
+            <Dropdown.Item key="nonzero">Nonzero OOB</Dropdown.Item>
+            <Dropdown.Item key="uninit">Uninit Violations</Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </Row>
+      <Spacer x={0.5}/>
       <Table> 
         <Table.Header columns={run_columns}>
           {(column) => (
@@ -546,9 +670,7 @@ export default function Home() {
       <Table.Pagination
         shadow
         noMargin
-        align="center"
         rowsPerPage={20}
-        onPageChange={(page: any) => console.log({ page })}
       />
       </Table>
       <Spacer y={2}/>
