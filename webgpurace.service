@@ -1,0 +1,15 @@
+[Unit]
+Description=WebGPU Race Testing Server
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+Restart=always
+RestartSec=1
+WorkingDirectory=/usr/src/webgpu-race
+ExecStart=/usr/src/webgpu-race/server
+
+[Install]
+WantedBy=multi-user.target

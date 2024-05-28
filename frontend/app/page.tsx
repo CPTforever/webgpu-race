@@ -287,19 +287,12 @@ export default function Home() {
   }
 
   const getShader = async(parameters: any) => {
-    let axiosConfig = {
-      headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          "Access-Control-Allow-Origin": "*",
-      }
-    };
-
     let key: string = "";
     let new_parameters = parameters;
     for (key in parameter_presets.basic) {
       console.log(key);
       if (!(key in new_parameters)) {
-        new_parameters[key] = parameter_presets.basic[key];
+        new_parameters[key] = parameter_presets.basic[key as keyof typeof parameter_presets.basic];
       }
     }
 
@@ -307,8 +300,10 @@ export default function Home() {
 
     await setParameters(new_parameters);
 
-    const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters, axiosConfig);
-
+  const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters);
+  
+    console.log(res);
+  
     setShaders({"shaders": res.data, set_parameters: parameters});
 
     return res.data;
@@ -644,7 +639,7 @@ export default function Home() {
             disallowEmptySelection
             selectionMode="multiple"
             selectedKeys={selected}
-            onSelectionChange={setSelected}
+            onSelectionChange={(_) => setSelected}
           >
             <Dropdown.Item key="mismatches">Mismatches</Dropdown.Item>
             <Dropdown.Item key="oob">OOB Violations</Dropdown.Item>
