@@ -23,6 +23,16 @@ function getRandomArbitrary(min: any, max: any) {
   return Math.floor(Math.random() * (max - min) + min);
 }
 
+var str2bool = (value: string) => {
+  if (value.toLowerCase() === "true") return true;
+  return false;
+}
+
+var bool2str = (value: boolean) => {
+  if (value) return "true";
+  return "false";
+}
+
   const random = (checked: any) => {
     let val = getRandomArbitrary(0, 5);
     let pattern_weight = "Even";
@@ -49,9 +59,9 @@ function getRandomArbitrary(min: any, max: any) {
       "racy_constant_loc_pct" : getRandomArbitrary(0, 100),
       "racy_var_pct" : getRandomArbitrary(0, 100),
       "num_lits" : getRandomArbitrary(1, 16),
-      "stmts" : getRandomArbitrary(1, 1000),
-      "vars" : getRandomArbitrary(1, 16),
-      "uninit_vars": getRandomArbitrary(1, 200),
+      "stmts" : getRandomArbitrary(1000, 3000),
+      "vars" : getRandomArbitrary(64, 1024),
+      "uninit_vars": getRandomArbitrary(1, 10),
       "locs_per_thread" : getRandomArbitrary(1, 16),
       "constant_locs" : getRandomArbitrary(1, 16),
       "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
@@ -61,7 +71,9 @@ function getRandomArbitrary(min: any, max: any) {
       "block_max_nest_level" : 3,
       "oob_pct" : checked == false ? 0 : getRandomArbitrary(0, 100),
       "max_loop_iter" : 10,
-      "buf_count" : getRandomArbitrary(1, 4)
+      "data_buf_size" : getRandomArbitrary(256, 1048756), // up to 1 MB
+      "pattern_slots": getRandomArbitrary(0, 10),
+      "reg_pressure": Math.random() < 0.9 // 90% chance of register pressure
     }
   }
 
@@ -86,7 +98,9 @@ function getRandomArbitrary(min: any, max: any) {
       "block_max_nest_level" : 1,
       "oob_pct" : 0,
       "max_loop_iter" : 10,
-      "buf_count" : 1
+      "data_buf_size": 1024,
+      "pattern_slots": 3,
+      "reg_pressure": false,
     },
     "stress" : {
       "seed" : 0,
@@ -108,7 +122,9 @@ function getRandomArbitrary(min: any, max: any) {
       "block_max_nest_level" : 3,
       "oob_pct" : 0,
       "max_loop_iter" : 10,
-      "buf_count" : 4,
+      "data_buf_size": 1048576,
+      "pattern_slots": 5,
+      "reg_pressure": true
     }
   };
 
@@ -139,9 +155,9 @@ const ParameterBox = forwardRef((props, _ref: any) => {
         <Grid> 
           <Input type="number" label="seed (0 is random)" value={parameters.seed} onChange={e => {setParameter({...parameters, "seed" : Number(e.target.value)})}} />
           <Spacer />
-          <Input type="number" label="Workgroups" value={parameters.workgroups} onChange={e => {setParameter({...parameters, "workgroups" :  Math.max(Math.min(Number(e.target.value), 128), 0)})}} />
+          <Input type="number" label="Workgroups" value={parameters.workgroups} onChange={e => {setParameter({...parameters, "workgroups" :  Math.max(Math.min(Number(e.target.value), 1024), 0)})}} />
           <Spacer />
-          <Input type="number" label="Workgroup Size" value={parameters.workgroup_size} onChange={e => {setParameter({...parameters, "workgroup_size" : Math.max(Math.min(Number(e.target.value), 128), 0)})}} />
+          <Input type="number" label="Workgroup Size" value={parameters.workgroup_size} onChange={e => {setParameter({...parameters, "workgroup_size" : Math.max(Math.min(Number(e.target.value), 512), 0)})}} />
           <Spacer />
           <Input type="number" label="Racy Location Pct" value={parameters.racy_loc_pct} onChange={e => {setParameter({...parameters, "racy_loc_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
@@ -151,11 +167,11 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Racy Variable Pct" value={parameters.racy_var_pct} onChange={e => {setParameter({...parameters, "racy_var_pct" :  Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="Number of Literals" value={parameters.num_lits} onChange={e => {setParameter({...parameters, "num_lits" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Number of Literals" value={parameters.num_lits} onChange={e => {setParameter({...parameters, "num_lits" :  Math.max(Math.min(Number(e.target.value), 5000), 0)})}} />
           <Spacer />
-          <Input type="number" label="Number of Statements" value={parameters.stmts} onChange={e => {setParameter({...parameters, "stmts" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Number of Statements" value={parameters.stmts} onChange={e => {setParameter({...parameters, "stmts" :  Math.max(Math.min(Number(e.target.value), 10000), 0)})}} />
           <Spacer />
-          <Input type="number" label="Number of Variables" value={parameters.vars} onChange={e => {setParameter({...parameters, "vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
+          <Input type="number" label="Number of Variables" value={parameters.vars} onChange={e => {setParameter({...parameters, "vars" :  Math.max(Math.min(Number(e.target.value), 5000), 0)})}} />
           <Spacer />
           <Input type="number" label="Number of Uninitialized Variables" value={parameters.uninit_vars} onChange={e => {setParameter({...parameters, "uninit_vars" :  Math.max(Math.min(Number(e.target.value), 1000), 0)})}} />
           <Spacer />
@@ -171,7 +187,14 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Spacer />
           <Input type="number" label="Max Loop Iterations" value={parameters.max_loop_iter} onChange={e => {setParameter({...parameters, "max_loop_iter" : Math.max(Math.min(Number(e.target.value), 100), 0)})}} />
           <Spacer />
-          <Input type="number" label="Buffer Count" value={parameters.buf_count} onChange={e => {setParameter({...parameters, "buf_count" : Math.max(Math.min(Number(e.target.value), 4), 1)})}} />
+          <Input type="number" label="Data Buffer Size" value={parameters.data_buf_size} onChange={e => {setParameter({...parameters, "data_buf_size" : Math.max(Math.min(Number(e.target.value), 8388608), 0)})}} />
+          <Spacer />
+          <Input type="number" label="Pattern Slots" value={parameters.pattern_slots} onChange={e => {setParameter({...parameters, "pattern_slots" : Math.max(Math.min(Number(e.target.value), 10), 0)})}} />
+          <Spacer />
+          <Radio.Group label="Register Pressure" value={bool2str(parameters.reg_pressure)} onChange={e => {setParameter({...parameters, "reg_pressure" : str2bool(e)})}}>
+            <Radio value="true">True</Radio>
+            <Radio value="false">False</Radio>
+          </Radio.Group>
           <Spacer />
           <Radio.Group label="Race Value Strategy" value={parameters.race_val_strat} onChange={e => {setParameter({...parameters, "race_val_strat" : e})}}>
             <Radio value="None">None</Radio>

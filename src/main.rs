@@ -36,7 +36,9 @@ struct Options {
     else_chance: u32,
     race_val_strat: String,
     pattern_weights: String,
-    buf_count: u32
+    data_buf_size: u32,
+    pattern_slots: u32,
+    reg_pressure: bool
 }
 
 #[derive(Serialize)]
@@ -201,8 +203,9 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             _ => (33, 17, 17, 33),
         },
         oob_pct: settings.oob_pct,
-        pattern_slots: 5,
-        data_buf_size: 256
+        pattern_slots: settings.pattern_slots,
+        data_buf_size: settings.data_buf_size,
+        reg_pressure: settings.reg_pressure
     };
 
     let (safe_str, race_str, data_race_info) = match generate(gen_options) {
