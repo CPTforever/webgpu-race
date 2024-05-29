@@ -288,19 +288,11 @@ export default function Home() {
 
   const getShader = async(parameters: any) => {
     let key: string = "";
-    let new_parameters = parameters;
-    for (key in parameter_presets.basic) {
-      console.log(key);
-      if (!(key in new_parameters)) {
-        new_parameters[key] = parameter_presets.basic[key as keyof typeof parameter_presets.basic];
-      }
-    }
-    console.log(new_parameters);
-    setParameters(new_parameters);
+    setParameters(parameters);
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(new_parameters)
+      body: JSON.stringify(parameters)
     };
     const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/shader", requestOptions);
     if (!response.ok) {
@@ -308,7 +300,7 @@ export default function Home() {
     }
 
     let data = await response.json();
-    setShaders({ shaders: data, set_parameters: new_parameters });
+    setShaders({ shaders: data, set_parameters: parameters });
     return data;
   }
   
