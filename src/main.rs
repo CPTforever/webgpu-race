@@ -196,7 +196,7 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             "Even" => (33, 17, 17, 33),
             "Basic" => (100, 0, 0, 0),
             "IntMult" => (0, 100, 0, 0),
-            "IntDiv" => (0, 0, 100, 0),
+            "IntAdd" => (0, 0, 100, 0),
             "Divide" => (0, 0, 0, 100),
             _ => (33, 17, 17, 33),
         },

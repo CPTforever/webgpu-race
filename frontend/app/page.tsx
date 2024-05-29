@@ -36,7 +36,7 @@ function getRandomArbitrary(min: any, max: any) {
       pattern_weight = "IntMult";
     }
     else if (val == 3) {
-      pattern_weight = "IntDiv";
+      pattern_weight = "IntAdd";
     }
     else if (val == 4) {
       pattern_weight = "Divide";
@@ -182,7 +182,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
             <Radio value="Even">Even</Radio>
             <Radio value="Basic">Basic</Radio>
             <Radio value="IntMult">Integer Overflow Multiplication</Radio>
-            <Radio value="IntDiv">Integer Overflow Divison</Radio>
+            <Radio value="IntAdd">Integer Overflow Addition</Radio>
             <Radio value="Divide">Divide By Zero</Radio>
           </Radio.Group>
         </Grid>
@@ -223,6 +223,7 @@ export default function Home() {
     if (!response.ok) {
       throw new Error(`Error! status: ${response.status}`);
     }
+
 
     let data = await response.json();
 
