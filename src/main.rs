@@ -71,7 +71,7 @@ struct ShaderSubmission  {
     name: String,
 }
 
-#[put("/submission", data="<data>")]
+#[put("/race_api/submission", data="<data>")]
 fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     let mut rng = rand::thread_rng();
     let start = SystemTime::now();
@@ -113,7 +113,7 @@ struct ListEntry {
     uninit: u64,
 }
 
-#[get("/shader?<query>")]
+#[get("/race_api/shader?<query>")]
 fn get_shader(query: &str) -> Json<Vec<ListEntry>> { 
     println!("{}", query);
     let query_list = query.split(",");
@@ -170,7 +170,7 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     return rocket::serde::json::Json(x);
 }
 
-#[post("/shader", format = "application/json", data="<settings>")]
+#[post("/race_api/shader", format = "application/json", data="<settings>")]
 fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
     let gen_options = GenOptions {
         seed: settings.seed,
