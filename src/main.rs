@@ -4,39 +4,15 @@
 extern crate rocket;
 
 use ast::{Module, FnAttr};
-use chrono::Utc;
 use data_race_generator::*;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use rocket::serde::{json::Json, Serialize, Deserialize};
 use std::error::Error;
-use rocket::fairing::{Fairing, Info, Kind};
-use rocket::http::{Header, Status};
-use rocket::{Request, Response};
-pub struct CORS;
 use std::fs::create_dir;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, Result};
 use rocket::serde::json::to_string;
-
-#[rocket::async_trait]
-impl Fairing for CORS {
-    fn info(&self) -> Info {
-        Info {
-            name: "Add CORS headers to responses",
-            kind: Kind::Response
-        }
-    }
-
-    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
-        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Methods", "PUT, OPTIONS"));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
-    }
-}
-
-
 
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(crate = "rocket::serde")]
@@ -194,18 +170,8 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     return rocket::serde::json::Json(x);
 }
 
-#[options("/shader")]
-fn cors_check_options() -> Status {
-    Status::Ok
-}
-
-#[options("/submission")]
-fn cors_check_options2() -> Status {
-    Status::Ok
-}
-
-#[put("/shader", format = "application/json", data="<settings>")]
-fn put_shader(settings: Json<Options>) -> Json<ShaderResponse> {
+#[post("/shader", format = "application/json", data="<settings>")]
+fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
     let gen_options = GenOptions {
         seed: settings.seed,
         workgroup_size: settings.workgroup_size,
@@ -256,7 +222,7 @@ fn put_shader(settings: Json<Options>) -> Json<ShaderResponse> {
 
 #[launch]
 fn rocket() -> _ {
-    create_dir("./outcomes");
+    let _ = create_dir("./outcomes");
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
 
     conn.execute("CREATE TABLE IF NOT EXISTS results (
@@ -275,9 +241,7 @@ fn rocket() -> _ {
         );", ()).unwrap();
 
     rocket::build()
-        .mount("/", routes![get_shader, put_shader, cors_check_options, cors_check_options2, submit_shader])
-        .attach(CORS)
-
+        .mount("/", routes![get_shader, post_shader, submit_shader])
 }
 
 
@@ -285,8 +249,6 @@ fn generate(gen_options: GenOptions) -> Result<(String, String, DataRaceInfo), B
     let mut rng = StdRng::seed_from_u64(gen_options.seed);
 
     let out = data_race_generator::Generator::new(&mut rng, &gen_options).gen_module();
-
-    let dt = Utc::now();
 
     let safe_shader = out.safe;
     let race_shader = out.race;

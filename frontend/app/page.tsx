@@ -2,7 +2,6 @@
 
 import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox, Dropdown} from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
-import axios from 'axios';
 import { run_shader, check_gpu } from './shader';
 import { analyze, pattern_anaylze } from './analyze_results';
 import getVideoCardInfo from './get_gpu';
@@ -215,22 +214,23 @@ const ParameterBox = forwardRef((props, _ref: any) => {
 
 export default function Home() {
   const getLoader = async(selected: any) => {
-    const res = await axios.get(process.env.NEXT_PUBLIC_RACE_API + '/shader', {
-      headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          "Access-Control-Allow-Origin": "*",
-      },
-      params: {
-        query: Array.from(selected).join()
-      }
-    }); 
-    let x = res.data;
+    const requestOptions = {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/shader?" + 
+      new URLSearchParams({query: Array.from(selected).join()}), requestOptions);
+    if (!response.ok) {
+      throw new Error(`Error! status: ${response.status}`);
+    }
 
-    for (let i = 0; i < x.length; i++) {
-    	x[i] = {...x[i], "key" : i};
+    let data = await response.json();
+
+    for (let i = 0; i < data.length; i++) {
+    	data[i] = {...data[i], "key" : i};
     }
     
-    return x;
+    return data;
   }
 
   let [elapsed, setElapsed] = useState(0);
@@ -273,11 +273,10 @@ export default function Home() {
     setParameterState(parameters);
   }
 
-  const addRow = (id: any, name: any, total: any, mismatches: any, pattern_total: any, non_zero: any, uninit: any) => {
+  const addRow = (id: any, total: any, mismatches: any, pattern_total: any, non_zero: any, uninit: any) => {
     setRows((a: any) => [...a, {
       key: id,
       run: id,
-      name: name,
       total: total,
       mismatches: mismatches,
       pattern: pattern_total,
@@ -295,18 +294,21 @@ export default function Home() {
         new_parameters[key] = parameter_presets.basic[key as keyof typeof parameter_presets.basic];
       }
     }
-
     console.log(new_parameters);
+    setParameters(new_parameters);
+    const requestOptions = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(new_parameters)
+    };
+    const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/shader", requestOptions);
+    if (!response.ok) {
+      throw new Error(`Error! status: ${response.status}`);
+    }
 
-    await setParameters(new_parameters);
-
-  const res = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/shader', parameters);
-  
-    console.log(res);
-  
-    setShaders({"shaders": res.data, set_parameters: parameters});
-
-    return res.data;
+    let data = await response.json();
+    setShaders({ shaders: data, set_parameters: new_parameters });
+    return data;
   }
   
   const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }) => {
@@ -357,29 +359,29 @@ export default function Home() {
         continue;
       };
     }
-    
 
-    let axiosConfig = {
-      headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          "Access-Control-Allow-Origin": "*",
-      }
+    const requestOptions = {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vendor: video_card_info.vendor,
+        renderer: video_card_info.renderer,
+        parameters: parameters,
+        reps: reps,
+        data_race_info: shader.info,
+        mismatches: total,
+        oob: pattern_total,
+        nonzero: non_zero_total,
+        uninit: uninit_total,
+        name: username
+      })
     };
-    const submit = await axios.put(process.env.NEXT_PUBLIC_RACE_API + '/submission', JSON.stringify({
-      vendor: video_card_info.vendor,
-      renderer: video_card_info.renderer,
-      parameters: parameters,
-      reps: reps,
-      data_race_info: shader.info,
-      mismatches: total,
-      oob: pattern_total,
-      nonzero: non_zero_total,
-      uninit: uninit_total,
-      name: username
-    }), axiosConfig);
+    const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/submission", requestOptions);
+    if (!response.ok) {
+      throw new Error(`Error! status: ${response.status}`);
+    }
 
-    
-    addRow(i, submit.data, total, arr, pattern_total, non_zero_total, uninit_total);
+    addRow(i, total, arr, pattern_total, non_zero_total, uninit_total);
     
     return {
       "parameters" : parameters, 
@@ -395,7 +397,6 @@ export default function Home() {
 
       let shaders_x = await getShader(parameters_x);
 
-      //let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
       let obj = await runShader(i, parameters_x, shaders_x);
 
       i+=1;
@@ -444,10 +445,6 @@ export default function Home() {
     {
       key: "run",
       label: "RUN",
-    },
-    {
-      key: "name",
-      label: "NAME",
     },
     {
       key: "total",

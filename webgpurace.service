@@ -1,7 +1,6 @@
 [Unit]
 Description=WebGPU Race Testing Server
 After=network.target
-StartLimitIntervalSec=0
 
 [Service]
 Type=simple
