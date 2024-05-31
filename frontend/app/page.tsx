@@ -3,7 +3,7 @@
 import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox, Dropdown} from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { run_shader, check_gpu } from './shader';
-import { analyze, pattern_anaylze } from './analyze_results';
+import { analyze, pattern_analyze } from './analyze_results';
 import getVideoCardInfo from './get_gpu';
 import { Table } from '@nextui-org/react';
 import { any } from 'prop-types';
@@ -297,13 +297,12 @@ export default function Home() {
     setParameterState(parameters);
   }
 
-  const addRow = (id: any, total: any, mismatches: any, pattern_total: any, non_zero: any, uninit: any) => {
+  const addRow = (id: any, total: any, mismatches: any, non_zero: any, uninit: any) => {
     setRows((a: any) => [...a, {
       key: id,
       run: id,
       total: total,
       mismatches: mismatches,
-      pattern: pattern_total,
       non_zero: non_zero,
       uninit: uninit
     }]);
@@ -336,7 +335,6 @@ export default function Home() {
     }
 
     let total = 0;
-    let pattern_total = 0;
     let non_zero_total = 0; 
     let uninit_total = 0;
     let arr = [];
@@ -357,16 +355,15 @@ export default function Home() {
         setElapsed(100 * (i + 1) / reps);
 
         let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
-        let pattern_result = pattern_anaylze(arr_race[4]);
+        let pattern_result = pattern_analyze(arr_race[4]);
         let uninit_result = uninit_anaylze(arr_race[1]);
         arr.push(...result);
         total += result.length;
-        pattern_total += pattern_result[0].length;
-        non_zero_total += pattern_result[1].length;
+        non_zero_total += pattern_result.length;
         uninit_total += uninit_result.length;
-        show_arr.non_zero.push(...pattern_result[1]);
+        show_arr.non_zero.push(...pattern_result);
         show_arr.uninit.push(...uninit_result);
-        console.log(pattern_result[1], uninit_result);
+        console.log(pattern_result, uninit_result);
         setMismatches(JSON.stringify(show_arr));
       } catch (e) {
         i-=1;
@@ -386,7 +383,6 @@ export default function Home() {
         reps: reps,
         data_race_info: shader.info,
         mismatches: total,
-        oob: pattern_total,
         nonzero: non_zero_total,
         uninit: uninit_total,
         name: username
@@ -397,12 +393,10 @@ export default function Home() {
       throw new Error(`Error! status: ${response.status}`);
     }
 
-    addRow(i, total, arr, pattern_total, non_zero_total, uninit_total);
+    addRow(i, total, arr, non_zero_total, uninit_total);
     
     return {
-      "parameters" : parameters, 
-      "mismatches" : total,
-      "pattern" : pattern_total
+      "parameters" : parameters
     }
   }
 
@@ -440,10 +434,6 @@ export default function Home() {
       label: "MISMATCH COUNT",
     },
     {
-      key: "oob",
-      label: "OOB VIOLATIONS",
-    },
-    {
       key: "nonzero",
       label: "NON ZERO OOB",
     },
@@ -465,10 +455,6 @@ export default function Home() {
     {
       key: "total",
       label: "MISMATCH COUNT",
-    },
-    {
-      key: "pattern",
-      label: "OOB VIOLATIONS",
     },
     {
       key: "non_zero",
@@ -655,7 +641,6 @@ export default function Home() {
             onSelectionChange={(_) => setSelected}
           >
             <Dropdown.Item key="mismatches">Mismatches</Dropdown.Item>
-            <Dropdown.Item key="oob">OOB Violations</Dropdown.Item>
             <Dropdown.Item key="nonzero">Nonzero OOB</Dropdown.Item>
             <Dropdown.Item key="uninit">Uninit Violations</Dropdown.Item>
           </Dropdown.Menu>

@@ -67,7 +67,6 @@ struct ShaderSubmission  {
     data_race_info: DataRaceInfo,
     reps: u32,
     mismatches: u64,
-    oob: u64,
     nonzero: u64,
     uninit: u64,
     name: String,
@@ -85,11 +84,10 @@ fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
 
     conn.execute(
-        "INSERT INTO results (NAME, REPS, MISMATCHES, OOB, NONZERO, UNINIT, TOTAL_VIOLATIONS, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO results (NAME, REPS, MISMATCHES, NONZERO, UNINIT, TOTAL_VIOLATIONS, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         (&data.name,
          data.reps,
          data.mismatches,
-         data.oob,
          data.nonzero,
          data.uninit,
          data.mismatches + data.nonzero + data.uninit,
@@ -110,7 +108,6 @@ struct ListEntry {
     renderer: String,
     parameters: String,
     mismatches: u64,
-    oob: u64,
     nonzero: u64,
     uninit: u64,
 }
@@ -135,19 +132,14 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
         else if query == "uninit" {
             query_string.push_str("UNINIT > 0");
         }
-        else if query == "oob" {
-            query_string.push_str("OOB > 0");
-
-        }
         else if query == "nonzero" {
             query_string.push_str("NONZERO > 0");
         }
-
         first = true;        
     }
 
     let prepared_string = 
-        format!("SELECT MISMATCHES, OOB, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
+        format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
         {};", query_string);
 
     println!("{}", &prepared_string);
@@ -156,7 +148,6 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     let v = stmt.query_map((), |row| {
         Ok(ListEntry {
             mismatches: row.get(0).expect("mismatches failed"),   
-            oob: row.get(1).expect("mismatches failed"),   
             nonzero: row.get(2).expect("mismatches failed"),   
             uninit: row.get(3).expect("mismatches failed"),   
             vendor: row.get(4).expect("mismatches failed"),   
@@ -233,7 +224,6 @@ fn rocket() -> _ {
             NAME             TEXT,
             REPS             INTEGER     NOT NULL,
             MISMATCHES       INTEGER     NOT NULL,
-            OOB              INTEGER     NOT NULL,
             NONZERO          INTEGER     NOT NULL,
             UNINIT           INTEGER     NOT NULL,
             TOTAL_VIOLATIONS INTEGER     NOT NULL,

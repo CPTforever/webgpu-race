@@ -33,78 +33,65 @@ export async function run_shader(shader, shader_info) {
 
     let size = ((shader_info.workgroup_size * shader_info.workgroups * shader_info.locs_per_thread) + shader_info.constant_locs) * 4;
     const mem_arr = new Uint8Array(size);
-    const unit_arr = new Uint8Array(shader_info.workgroup_size * shader_info.workgroups * shader_info.uninit_vars * 4);
+
+    let init;
+    if (shader_info.race_val_strat == "Even") {
+      init = 2;
+    } else {
+      init = 1;
+    }
     for (let i = 0; i < mem_arr.byteLength; i++) {
-        if (i % 4 == 0) {
-            mem_arr[i] = 0;
+      if (i % 4 == 0) {
+            mem_arr[i] =  init;
         }
         else {
             mem_arr[i] = 0;
         }
     }
 
-    for (let i = 0; i < unit_arr.byteLength; i++) {
-        unit_arr[i] = 0;
-    }
-
+    const unit_arr = new Uint8Array(shader_info.workgroup_size * shader_info.workgroups * shader_info.uninit_vars * 4);
     let index_size = shader_info.workgroup_size * shader_info.workgroups * 4 * 5;
+    let output_size = index_size * 2;
 
     const index_arr = new Uint8Array(index_size);
-    const data_arr = new Uint8Array(256 * 4);
-    const output_arr = new Uint8Array(index_size);
-
-    for (let i = 0; i < index_arr.byteLength; i++) {
-        if (i % 4 == 0) {
-            index_arr[i] =  1;
-        }
-        else {
-            index_arr[i] = 0;
-        }
-    }
-
-    for (let i = 0; i < output_arr.byteLength; i++) {
-        if (i % 4 == 0) {
-            output_arr[i] =  0;
-        }
-        else {
-            output_arr[i] = 0;
-        }
-    }
+    const data_arr = new Uint8Array(shader_info.data_buf_size * 4);
+    const output_arr = new Uint8Array(output_size);
 
     let gpuBuffers = [];
     gpuBuffers.push(device.createBuffer({
+        label: "memory",
         mappedAtCreation: true,
         size: mem_arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     }));
     gpuBuffers.push(device.createBuffer({
+        label: "uninitialized",
         mappedAtCreation: true,
         size: unit_arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     }));
     gpuBuffers.push(device.createBuffer({
+        label: "index",
         mappedAtCreation: true,
         size: index_arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     }));
     gpuBuffers.push(device.createBuffer({
+        label: "data",
         mappedAtCreation: true,
         size: data_arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     }));
     gpuBuffers.push(device.createBuffer({
+        label: "output",
         mappedAtCreation: true,
-        size: index_arr.byteLength,
+        size: output_arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC	
     }));
 
     let arr_list = [mem_arr, unit_arr, index_arr, data_arr, output_arr]
     for (let i = 0; i < gpuBuffers.length; i++) {
-        if (i == 0 || i == 2 || i == 3) {
-            continue;
-        }
         const arrayBufferArray = gpuBuffers[i].getMappedRange();
-
         new Uint8Array(arrayBufferArray).set(arr_list[i]);
         gpuBuffers[i].unmap();
     }

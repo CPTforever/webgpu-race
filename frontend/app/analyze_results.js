@@ -49,15 +49,14 @@ export function analyze(safe_array, race_array, parameters, data_race_info, rep)
     return mismatches;
 }
 
-export function pattern_anaylze(array) {
-    let mismatches = [];
+export function pattern_analyze(array) {
     let non_zero = [];
-    for (let i = 0; i < array.length; i++) {
+    for (let i = 1; i < array.length; i+=2) {
         if (array[i] != 0) {
-            non_zero.push([i, array[i]]);
+            non_zero.push([array[i-1], array[i]]); // this result uses index/data pairs, where the index is the even element and the data is the odd element
         }
     }
 
-    return [mismatches, non_zero]; 
+    return non_zero; 
 }
 
