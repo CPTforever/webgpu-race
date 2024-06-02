@@ -6,11 +6,10 @@ extern crate rocket;
 use ast::{Module, FnAttr};
 use data_race_generator::*;
 use rand::prelude::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::SeedableRng;
 use rocket::serde::{json::Json, Serialize, Deserialize};
 use std::error::Error;
 use std::fs::create_dir;
-use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, Result};
 use rocket::serde::json::to_string;
 
@@ -70,22 +69,16 @@ struct ShaderSubmission  {
     nonzero: u64,
     uninit: u64,
     name: String,
+    email: String,
 }
 
 #[put("/race_api/submission", data="<data>")]
-fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
-    let mut rng = rand::thread_rng();
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    let n2 : u32 = rng.gen(); // Prevent collisons of file names 
-
+fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
-
     conn.execute(
-        "INSERT INTO results (NAME, REPS, MISMATCHES, NONZERO, UNINIT, TOTAL_VIOLATIONS, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO results (NAME, EMAIL, REPS, MISMATCHES, NONZERO, UNINIT, TOTAL_VIOLATIONS, PARAMETERS, DATA_RACE_INFO, VENDOR, RENDERER) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         (&data.name,
+         &data.email,
          data.reps,
          data.mismatches,
          data.nonzero,
@@ -96,9 +89,6 @@ fn submit_shader(data: rocket::serde::json::Json<ShaderSubmission>) -> String {
          &data.vendor,
          &data.renderer)
     ).unwrap();
-
-    
-    format!("./outcomes/{}-{}.json", since_the_epoch.as_millis(), n2)
 }
 
 #[derive(Deserialize, Serialize)]
@@ -222,6 +212,7 @@ fn rocket() -> _ {
     conn.execute("CREATE TABLE IF NOT EXISTS results (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
             NAME             TEXT,
+            EMAIL            TEXT,
             REPS             INTEGER     NOT NULL,
             MISMATCHES       INTEGER     NOT NULL,
             NONZERO          INTEGER     NOT NULL,

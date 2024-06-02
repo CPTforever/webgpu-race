@@ -263,6 +263,7 @@ export default function Home() {
   let [load_rows, setLoadRows] = useState<any>([]);
   let [reps, setReps] = useState(10);
   let [username, setName] = useState("");
+  let [email, setEmail] = useState("");
   let [mismatches, setMismatches] = useState("");
   let [checked, setChecked] = React.useState(false);
   let [selected, setSelected] = React.useState(new Set(["nonzero", "uninit"]));
@@ -363,7 +364,6 @@ export default function Home() {
         uninit_total += uninit_result.length;
         show_arr.non_zero.push(...pattern_result);
         show_arr.uninit.push(...uninit_result);
-        console.log(pattern_result, uninit_result);
         setMismatches(JSON.stringify(show_arr));
       } catch (e) {
         i-=1;
@@ -373,24 +373,28 @@ export default function Home() {
       };
     }
 
-    const requestOptions = {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vendor: video_card_info.vendor,
-        renderer: video_card_info.renderer,
-        parameters: parameters,
-        reps: reps,
-        data_race_info: shader.info,
-        mismatches: total,
-        nonzero: non_zero_total,
-        uninit: uninit_total,
-        name: username
-      })
-    };
-    const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/submission", requestOptions);
-    if (!response.ok) {
-      throw new Error(`Error! status: ${response.status}`);
+    // only submit interesting results to database
+    if (total + non_zero_total + uninit_total > 0) {
+      const requestOptions = {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor: video_card_info.vendor,
+          renderer: video_card_info.renderer,
+          parameters: parameters,
+          reps: reps,
+          data_race_info: shader.info,
+          mismatches: total,
+          nonzero: non_zero_total,
+          uninit: uninit_total,
+          name: username,
+          email: email
+        })
+      };
+      const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/submission", requestOptions);
+      if (!response.ok) {
+        throw new Error(`Error! status: ${response.status}`);
+      }
     }
 
     addRow(i, total, arr, non_zero_total, uninit_total);
@@ -555,8 +559,11 @@ export default function Home() {
       <Row>
         <Col>
           <Row>
-            <Input label="name" type="text" value={username} onChange={e => {setName(e.target.value)}}  />
+            <Input label="Name (Optional)" type="text" value={username} onChange={e => {setName(e.target.value)}}  />
             <Spacer x={0.5}/>
+            <Input label="Email (Optional)" type="text" value={email} onChange={e => {setEmail(e.target.value)}}  />
+            <Spacer x={0.5}/>
+
             <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
             <Spacer x={0.5}/>
             <Spacer y = {0.5}/>
