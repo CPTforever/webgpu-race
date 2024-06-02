@@ -148,11 +148,11 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     let v = stmt.query_map((), |row| {
         Ok(ListEntry {
             mismatches: row.get(0).expect("mismatches failed"),   
-            nonzero: row.get(2).expect("mismatches failed"),   
-            uninit: row.get(3).expect("mismatches failed"),   
-            vendor: row.get(4).expect("mismatches failed"),   
-            renderer: row.get(5).expect("mismatches failed"),
-            parameters: row.get(6).expect("mismatches failed"),   
+            nonzero: row.get(1).expect("nonzero failed"),   
+            uninit: row.get(2).expect("uninit failed"),   
+            vendor: row.get(3).expect("vendor failed"),   
+            renderer: row.get(4).expect("renderer failed"),
+            parameters: row.get(5).expect("parameters failed"),   
         })
     }).expect("bad things");
     
