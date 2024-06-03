@@ -111,6 +111,8 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     
     let mut query_string = "".to_owned();
 
+    let mut all_results = false;
+
     let mut first = false;
     for query in query_list {
         if first {
@@ -124,13 +126,18 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
         }
         else if query == "nonzero" {
             query_string.push_str("NONZERO > 0");
+        } else if query == "all" {
+          all_results = true;
         }
         first = true;        
     }
 
-    let prepared_string = 
-        format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
-        {};", query_string);
+    let prepared_string = if all_results {
+      format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results")
+    } else  {
+      format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
+      {};", query_string)
+    };
 
     println!("{}", &prepared_string);
     let mut stmt =  conn.prepare(&prepared_string).expect("Good things.");

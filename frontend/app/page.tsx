@@ -261,18 +261,30 @@ export default function Home() {
   let [shaders, setShaders] = useState({"shaders": {"safe" : "", "race" : "", "info" : {}}, "set_parameters": {}});
   let [rows, setRows] = useState<any>([]);
   let [load_rows, setLoadRows] = useState<any>([]);
-  let [reps, setReps] = useState(10);
+  let [reps, setReps] = useState(3);
   let [username, setName] = useState("");
   let [email, setEmail] = useState("");
   let [mismatches, setMismatches] = useState("");
   let [checked, setChecked] = React.useState(false);
-  let [selected, setSelected] = React.useState(new Set(["nonzero", "uninit"]));
+  let [selected, setSelected] = React.useState<Set<string>>(new Set(["nonzero"]));
 
   const selectedValue = React.useMemo(
     () => Array.from(selected).join(", ").replaceAll("_", " "),
     [selected]
   );
-  
+
+  const handleSelectionChange = (keys: 'all' | Set<React.Key>) => {
+    // Doesn't appear this occurs
+    if (keys === 'all') {
+      console.log("Query selection is all");
+      // Handle the case where all items are selected if necessary
+      return;
+    }
+    console.log(keys);
+    const selectedKeys = new Set<string>(Array.from(keys as Set<string>));
+    setSelected(selectedKeys);
+  };
+
   const stop = React.useRef(true);
   const parameterRef = useRef<any>();
  
@@ -327,7 +339,7 @@ export default function Home() {
     return data;
   }
   
-  const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }) => {
+  const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }, submit: boolean) => {
     stop.current = false;
 
     let video_card_info = getVideoCardInfo();
@@ -374,7 +386,7 @@ export default function Home() {
     }
 
     // only submit interesting results to database
-    if (total + non_zero_total + uninit_total > 0) {
+    if (total + non_zero_total + uninit_total > 0 || submit) {
       const requestOptions = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -406,12 +418,13 @@ export default function Home() {
 
   const runRandom = async () => {
     let i = rows.length + 1;
+    var submit = true; // submit results on the first run to get GPU info
     while(true) {
       let parameters_x = setRandom(checked);
 
       let shaders_x = await getShader(parameters_x);
 
-      let obj = await runShader(i, parameters_x, shaders_x);
+      let obj = await runShader(i, parameters_x, shaders_x, submit);
 
       i+=1;
       if (obj.parameters === "None") {
@@ -421,6 +434,7 @@ export default function Home() {
       if (stop.current === true) {
 	      return;
       }
+      submit = false;
     }
   }
 
@@ -573,7 +587,7 @@ export default function Home() {
           </Row>
           <Spacer y={0.5}/>
           <Row>
-            <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
+            <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}, false); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
             <Spacer x={0.5}/>
             <Button onPress={() => {getShader(getParameterState())}}> Get Shader </Button>
             <Spacer x={0.5}/>
@@ -645,11 +659,13 @@ export default function Home() {
             disallowEmptySelection
             selectionMode="multiple"
             selectedKeys={selected}
-            onSelectionChange={(_) => setSelected}
+            onSelectionChange={(keys) => handleSelectionChange(keys)}
           >
             <Dropdown.Item key="mismatches">Mismatches</Dropdown.Item>
             <Dropdown.Item key="nonzero">Nonzero OOB</Dropdown.Item>
             <Dropdown.Item key="uninit">Uninit Violations</Dropdown.Item>
+            <Dropdown.Item key="all">All Results</Dropdown.Item>
+
           </Dropdown.Menu>
         </Dropdown>
       </Row>
