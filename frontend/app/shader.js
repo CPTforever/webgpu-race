@@ -51,11 +51,29 @@ export async function run_shader(shader, shader_info) {
 
     const unit_arr = new Uint8Array(shader_info.workgroup_size * shader_info.workgroups * shader_info.uninit_vars * 4);
     let index_size = shader_info.workgroup_size * shader_info.workgroups * 4 * 5;
-    let output_size = index_size * 2;
+    let output_size = shader_info.workgroup_size * shader_info.workgroups * 4 * 5 * 2;
 
     const index_arr = new Uint8Array(index_size);
-    const data_arr = new Uint8Array(shader_info.data_buf_size * 4);
+    const data_arr = new Uint8Array(256 * 4);
     const output_arr = new Uint8Array(output_size);
+
+    for (let i = 0; i < index_arr.byteLength; i++) {
+        if (i % 4 == 0) {
+            index_arr[i] =  1;
+        }
+        else {
+            index_arr[i] = 0;
+        }
+    }
+
+    for (let i = 0; i < output_arr.byteLength; i++) {
+        if (i % 4 == 0) {
+            output_arr[i] =  0;
+        }
+        else {
+            output_arr[i] = 0;
+        }
+    }
 
     let gpuBuffers = [];
     gpuBuffers.push(device.createBuffer({
