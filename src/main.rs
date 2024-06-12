@@ -133,10 +133,18 @@ fn get_shader(query: &str) -> Json<Vec<ListEntry>> {
     }
 
     let prepared_string = if all_results {
-      format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results")
-    } else  {
-      format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE
-      {};", query_string)
+        "SELECT 
+            MAX(MISMATCHES) AS MISMATCHES,
+            MAX(NONZERO) AS NONZERO,
+            MAX(UNINIT) AS UNINIT,
+            VENDOR, 
+            RENDERER, 
+            MIN(PARAMETERS) AS PARAMETERS
+        FROM results
+        GROUP BY VENDOR, RENDERER".to_string()
+    }     
+    else  {
+        format!("SELECT MISMATCHES, NONZERO, UNINIT, VENDOR, RENDERER, PARAMETERS FROM results WHERE {};", query_string)
     };
 
     println!("{}", &prepared_string);
@@ -183,12 +191,15 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             _ => None,
         },
         pattern_weights: match settings.pattern_weights.as_str() {
-            "Even" => (33, 17, 17, 33),
-            "Basic" => (100, 0, 0, 0),
-            "IntMult" => (0, 100, 0, 0),
-            "IntAdd" => (0, 0, 100, 0),
-            "Divide" => (0, 0, 0, 100),
-            _ => (33, 17, 17, 33),
+            "Even" => (16, 14, 14, 14, 14, 14, 14),
+            "Basic" => (100, 0, 0, 0, 0, 0, 0),
+            "IntMult" => (0, 100, 0, 0, 0, 0, 0),
+            "IntAdd" => (0, 0, 100, 0, 0, 0, 0),
+            "Divide" => (0, 0, 0, 100, 0, 0, 0),
+            "Modulo" => (0, 0, 0, 0, 100, 0, 0),
+            "DivideMin" => (0, 0, 0, 0, 0, 100, 0),
+            "ModuloMin" => (0, 0, 0, 0, 0, 0, 100),
+            _ => (16, 14, 14, 14, 14, 14, 14),
         },
         oob_pct: settings.oob_pct,
         pattern_slots: settings.pattern_slots,
