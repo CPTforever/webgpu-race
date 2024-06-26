@@ -191,7 +191,7 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             _ => None,
         },
         pattern_weights: match settings.pattern_weights.as_str() {
-            "Even" => (16, 14, 14, 14, 14, 14, 14),
+            "Default" => (70, 5, 5, 5, 5, 5, 5),
             "Basic" => (100, 0, 0, 0, 0, 0, 0),
             "IntMult" => (0, 100, 0, 0, 0, 0, 0),
             "IntAdd" => (0, 0, 100, 0, 0, 0, 0),
@@ -199,7 +199,7 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
             "Modulo" => (0, 0, 0, 0, 100, 0, 0),
             "DivideMin" => (0, 0, 0, 0, 0, 100, 0),
             "ModuloMin" => (0, 0, 0, 0, 0, 0, 100),
-            _ => (16, 14, 14, 14, 14, 14, 14),
+            _ => (70, 5, 5, 5, 5, 5, 5)
         },
         oob_pct: settings.oob_pct,
         pattern_slots: settings.pattern_slots,

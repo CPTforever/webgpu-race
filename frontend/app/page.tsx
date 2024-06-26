@@ -34,23 +34,6 @@ var bool2str = (value: boolean) => {
 }
 
   const random = (checked: any) => {
-    let val = getRandomArbitrary(0, 5);
-    let pattern_weight = "Even";
-    if (val == 0) {
-      pattern_weight = "Even";
-    }
-    else if (val == 1) {
-      pattern_weight = "Basic";
-    }
-    else if (val == 2) {
-      pattern_weight = "IntMult";
-    }
-    else if (val == 3) {
-      pattern_weight = "IntAdd";
-    }
-    else if (val == 4) {
-      pattern_weight = "Divide";
-    }
     return {
       "seed" : getRandomArbitrary(1,18446744073709551615),
       "workgroups" : getRandomArbitrary(1,128),
@@ -65,7 +48,7 @@ var bool2str = (value: boolean) => {
       "locs_per_thread" : getRandomArbitrary(1, 16),
       "constant_locs" : getRandomArbitrary(1, 16),
       "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
-      "pattern_weights" : pattern_weight,
+      "pattern_weights" : "Default", // leave weights to default for random testing
       "else_chance" : getRandomArbitrary(0, 100),
       "block_max_stmts" : getRandomArbitrary(2, 100),
       "block_max_nest_level" : 3,
@@ -93,7 +76,7 @@ var bool2str = (value: boolean) => {
       "locs_per_thread" : 8,
       "constant_locs" : 16,
       "race_val_strat" : "None",
-      "pattern_weights" : "Even",
+      "pattern_weights" : "Default",
       "block_max_stmts" : 4,
       "block_max_nest_level" : 1,
       "oob_pct" : 0,
@@ -116,7 +99,7 @@ var bool2str = (value: boolean) => {
       "locs_per_thread" : 80,
       "constant_locs" : 160,
       "race_val_strat" : "Even",
-      "pattern_weights" : "Even",
+      "pattern_weights" : "Default",
       "else_chance" : 50,
       "block_max_stmts" : 50,
       "block_max_nest_level" : 3,
@@ -202,7 +185,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           </Radio.Group>
           <Spacer />
           <Radio.Group label="Pattern Weights" value={parameters.pattern_weights} onChange={e => {setParameter({...parameters, "pattern_weights" : e})}}>
-            <Radio value="Even">Even</Radio>
+            <Radio value="Default">Default</Radio>
             <Radio value="Basic">Basic</Radio>
             <Radio value="IntMult">Integer Overflow Multiplication</Radio>
             <Radio value="IntAdd">Integer Overflow Addition</Radio>
@@ -556,12 +539,7 @@ export default function Home() {
           <Col> 
 
           <Row>
-            <Textarea rows={18} cols={100} label="Safe Shader" placeholder="Safe Shader" readOnly value={shaders.shaders.safe} />
-          </Row>
-          <Spacer y={1}/>
-
-          <Row>
-            <Textarea rows={18} cols={100} label="Race Shader" placeholder="Race Shader" readOnly value={shaders.shaders.race} />
+            <Textarea rows={18} cols={100} label="Shader" placeholder="Shader" readOnly value={shaders.shaders.race} />
           </Row>
           <Spacer y={1}/>
 
