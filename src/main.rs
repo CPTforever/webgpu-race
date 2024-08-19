@@ -10,7 +10,7 @@ use rand::SeedableRng;
 use rocket::serde::{json::Json, Serialize, Deserialize};
 use std::error::Error;
 use std::fs::create_dir;
-use rusqlite::{Connection, Result};
+use rusqlite::{params, Connection, Result};
 use rocket::serde::json::to_string;
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -70,6 +70,36 @@ struct ShaderSubmission  {
     uninit: u64,
     name: String,
     email: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct FuzzingInfo {
+  id: i64,
+  vendor: String,
+  renderer: String
+}
+
+#[put("/race_api/start_fuzzing", data="<data>")]
+fn start_fuzzing(mut data: Json<FuzzingInfo>) -> Json<FuzzingInfo> {
+    let conn = Connection::open("./outcomes/outcomes.db").unwrap();
+    conn.execute(
+        "INSERT INTO tracking (ITERATIONS, VENDOR, RENDERER) VALUES (?1, ?2, ?3)",
+        (1,
+         &data.vendor,
+         &data.renderer)
+    ).unwrap();
+    data.id = conn.last_insert_rowid();
+    return data;
+
+}
+
+#[post("/race_api/update_fuzzing", data="<data>")]
+fn update_fuzzing(data: rocket::serde::json::Json<FuzzingInfo>) {
+    let conn = Connection::open("./outcomes/outcomes.db").unwrap();
+    conn.execute(
+        "UPDATE tracking SET ITERATIONS = ITERATIONS + 1 WHERE ID = ?1", params![data.id]
+    ).unwrap();
 }
 
 #[put("/race_api/submission", data="<data>")]
@@ -242,8 +272,36 @@ fn rocket() -> _ {
             RENDERER         TEXT
         );", ()).unwrap();
 
+    conn.execute("CREATE TABLE IF NOT EXISTS tracking (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            ITERATIONS       INTEGER     NOT NULL,
+            CREATED_AT       INTEGER,
+            UPDATED_AT       INTEGER,
+            VENDOR           TEXT,
+            RENDERER         TEXT
+        );", ()).unwrap();
+
+    conn.execute("CREATE TRIGGER IF NOT EXISTS set_timestamp_on_insert
+            AFTER INSERT ON tracking
+            FOR EACH ROW
+            BEGIN
+              UPDATE tracking
+              SET CREATED_AT = strftime('%s', 'now'),
+                  UPDATED_AT = strftime('%s', 'now')
+              WHERE id = NEW.id;
+            END;", ()).unwrap();
+
+    conn.execute("CREATE TRIGGER IF NOT EXISTS set_timestamp_on_update
+            AFTER UPDATE ON tracking
+            FOR EACH ROW
+            BEGIN
+              UPDATE tracking
+              SET UPDATED_AT = strftime('%s', 'now')
+              WHERE id = NEW.id;
+            END;", ()).unwrap();
+
     rocket::build()
-        .mount("/", routes![get_shader, post_shader, submit_shader])
+        .mount("/", routes![get_shader, post_shader, submit_shader, start_fuzzing, update_fuzzing])
 }
 
 

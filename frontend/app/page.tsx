@@ -405,12 +405,48 @@ export default function Home() {
   const runRandom = async () => {
     let i = rows.length + 1;
     var submit = true; // submit results on the first run to get GPU info
+    // track this fuzzing session
+    let video_card_info = getVideoCardInfo();
+    var _id; // used to keep track of this fuzzing session
+    const requestOptions = {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 1, // unused
+        vendor: video_card_info.vendor,
+        renderer: video_card_info.renderer
+      })
+    };
+    const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/start_fuzzing", requestOptions);
+    if (!response.ok) {
+      throw new Error(`Error! status: ${response.status}`);
+    }
+
+    let data = await response.json();
+    _id = data["id"];
+    console.log("Fuzzing session id: " + _id)
+
     while(true) {
       let parameters_x = setRandom(checked);
 
       let shaders_x = await getShader(parameters_x);
 
       let obj = await runShader(i, parameters_x, shaders_x, submit);
+
+      // update tracking of this fuzzing session
+      const requestOptions = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: _id,
+          vendor: video_card_info.vendor,
+          renderer: video_card_info.renderer
+        })
+      };
+      const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/update_fuzzing", requestOptions);
+      if (!response.ok) {
+        throw new Error(`Error! status: ${response.status}`);
+      }
 
       i+=1;
       if (obj.parameters === "None") {
