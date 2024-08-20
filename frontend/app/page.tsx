@@ -7,6 +7,7 @@ import { analyze, pattern_analyze } from './analyze_results';
 import getVideoCardInfo from './get_gpu';
 import { Table } from '@nextui-org/react';
 import { any } from 'prop-types';
+import getGPUInfo from './get_gpu';
 
 function uninit_anaylze(array: any) {
   let mismatches = [];
@@ -328,7 +329,7 @@ export default function Home() {
   const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }, submit: boolean) => {
     stop.current = false;
 
-    let video_card_info = getVideoCardInfo();
+    let gpuInfo = await getGPUInfo();
     if (!check_gpu()) {
       return {parameters: "None"};
     }
@@ -377,8 +378,8 @@ export default function Home() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          vendor: video_card_info.vendor,
-          renderer: video_card_info.renderer,
+          vendor: gpuInfo.gpu.glVendor,
+          renderer: gpuInfo.gpu.glRenderer,
           parameters: parameters,
           reps: reps,
           data_race_info: shader.info,
@@ -406,15 +407,25 @@ export default function Home() {
     let i = rows.length + 1;
     var submit = true; // submit results on the first run to get GPU info
     // track this fuzzing session
-    let video_card_info = getVideoCardInfo();
+    let gpuInfo = await getGPUInfo();
+
     var _id; // used to keep track of this fuzzing session
     const requestOptions = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 1, // unused
-        vendor: video_card_info.vendor,
-        renderer: video_card_info.renderer
+        glVendor: gpuInfo.gpu.glVendor,
+        glRenderer: gpuInfo.gpu.glRenderer,
+        webgpuVendor: gpuInfo.gpu.webGPUVendor,
+        webgpuArchitecture: gpuInfo.gpu.webGPUArchitecture,
+        webgpuDevice: gpuInfo.gpu.webGPUDevice,
+        webgpuDescription: gpuInfo.gpu.webGPUDescription,
+        browserVendor: gpuInfo.browser.vendor,
+        browserVersion: gpuInfo.browser.version,
+        osVendor: gpuInfo.os.vendor,
+        osVersion: gpuInfo.os.version,
+        osMobile: gpuInfo.os.mobile
       })
     };
     const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/start_fuzzing", requestOptions);
@@ -439,8 +450,6 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: _id,
-          vendor: video_card_info.vendor,
-          renderer: video_card_info.renderer
         })
       };
       const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/update_fuzzing", requestOptions);

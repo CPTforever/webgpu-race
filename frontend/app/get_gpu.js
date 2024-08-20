@@ -1,18 +1,45 @@
-export default function getVideoCardInfo() {
-    const gl = document.createElement('canvas').getContext('webgl');
-    if (!gl) {
-        return {
-        vendor: "none",
-        renderer: "none"
-	};
+import platform from 'platform';
+
+export default async function getGPUInfo() {
+    // get platform info
+    let osVendor = "";
+    let osVersion = "";
+    let isMobile = "";
+    if (navigator.userAgentData) {
+      const highEntropyHints = ["platformVersion"]
+      const userAgentData = await navigator.userAgentData.getHighEntropyValues(highEntropyHints);
+      osVendor = userAgentData.platform;
+      osVersion = userAgentData.platformVersion;
+      isMobile = userAgentData.mobile;
     }
+    const gpuAdapter = await navigator.gpu.requestAdapter();
+    const adapterInfo = await gpuAdapter.requestAdapterInfo();
+    const gl = document.createElement('canvas').getContext('webgl');
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-    return debugInfo ? {
-        vendor: gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-        renderer:  gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL),
-    } : {
-        vendor: "none",
-        renderer: "none" 
+    let glVendor = "";
+    let glRenderer = "";
+    if (gl && debugInfo) {
+      glVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+      glRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+	  };
+    return {
+      gpu: {
+        webGPUVendor: adapterInfo.vendor,
+        webGPUArchitecture: adapterInfo.architecture,
+        webGPUDevice: adapterInfo.device,
+        webGPUDescription: adapterInfo.description,
+        glVendor: glVendor,
+        glRenderer: glRenderer
+      },
+      browser: {
+        vendor: platform.name,
+        version: platform.version
+      },
+      os: {
+        vendor: osVendor,
+        version: osVersion,
+        mobile: isMobile
+      }
     };
 }
   

@@ -74,28 +74,54 @@ struct ShaderSubmission  {
 
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
-struct FuzzingInfo {
-  id: i64,
-  vendor: String,
-  renderer: String
+struct FuzzingID {
+  id: i64
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[serde(rename_all = "camelCase")]
+struct FuzzingInfo {
+  id: i64,
+  gl_vendor: String,
+  gl_renderer: String,
+  webgpu_vendor: String,
+  webgpu_architecture: String,
+  webgpu_device: String,
+  webgpu_description: String,
+  browser_vendor: String,
+  browser_version: String,
+  os_vendor: String,
+  os_version: String,
+  os_mobile: bool 
+}
+
+
 #[put("/race_api/start_fuzzing", data="<data>")]
-fn start_fuzzing(mut data: Json<FuzzingInfo>) -> Json<FuzzingInfo> {
+fn start_fuzzing(data: Json<FuzzingInfo>) -> Json<FuzzingID> {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
     conn.execute(
-        "INSERT INTO tracking (ITERATIONS, VENDOR, RENDERER) VALUES (?1, ?2, ?3)",
+        "INSERT INTO tracking (ITERATIONS, GLVENDOR, GLRENDERER, OSMOBILE, WEBGPUVENDOR, WEBGPUARCH, WEBGPUDEVICE, WEBGPUDESC, BROWSERVENDOR, BROWSERVERSION, OSVENDOR, OSVERSION) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         (1,
-         &data.vendor,
-         &data.renderer)
+        &data.os_mobile,
+         &data.gl_vendor,
+         &data.gl_renderer,
+         &data.webgpu_vendor,
+         &data.webgpu_architecture,
+         &data.webgpu_device,
+         &data.webgpu_description,
+         &data.browser_vendor,
+         &data.browser_version,
+         &data.os_vendor,
+         &data.os_version
+      )
     ).unwrap();
-    data.id = conn.last_insert_rowid();
-    return data;
+    return Json(FuzzingID { id: conn.last_insert_rowid() });
 
 }
 
 #[post("/race_api/update_fuzzing", data="<data>")]
-fn update_fuzzing(data: rocket::serde::json::Json<FuzzingInfo>) {
+fn update_fuzzing(data: rocket::serde::json::Json<FuzzingID>) {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
     conn.execute(
         "UPDATE tracking SET ITERATIONS = ITERATIONS + 1 WHERE ID = ?1", params![data.id]
@@ -277,8 +303,17 @@ fn rocket() -> _ {
             ITERATIONS       INTEGER     NOT NULL,
             CREATED_AT       INTEGER,
             UPDATED_AT       INTEGER,
-            VENDOR           TEXT,
-            RENDERER         TEXT
+            OSMOBILE         INTEGER, 
+            GLVENDOR         TEXT,
+            GLRENDERER       TEXT,
+            WEBGPUVENDOR     TEXT,
+            WEBGPUARCH       TEXT,
+            WEBGPUDEVICE     TEXT,
+            WEBGPUDESC       TEXT,
+            BROWSERVENDOR    TEXT,
+            BROWSERVERSION   TEXT,
+            OSVENDOR         TEXT,
+            OSVERSION        TEXT
         );", ()).unwrap();
 
     conn.execute("CREATE TRIGGER IF NOT EXISTS set_timestamp_on_insert
