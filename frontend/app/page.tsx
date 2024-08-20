@@ -408,6 +408,7 @@ export default function Home() {
     var submit = true; // submit results on the first run to get GPU info
     // track this fuzzing session
     let gpuInfo = await getGPUInfo();
+    console.log(gpuInfo)
 
     var _id; // used to keep track of this fuzzing session
     const requestOptions = {

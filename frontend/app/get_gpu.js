@@ -4,7 +4,7 @@ export default async function getGPUInfo() {
     // get platform info
     let osVendor = "";
     let osVersion = "";
-    let isMobile = "";
+    let isMobile = false; 
     if (navigator.userAgentData) {
       const highEntropyHints = ["platformVersion"]
       const userAgentData = await navigator.userAgentData.getHighEntropyValues(highEntropyHints);
