@@ -34,7 +34,7 @@ var bool2str = (value: boolean) => {
   return "false";
 }
 
-  const random = (checked: any) => {
+  const random = () => {
     return {
       "seed" : getRandomArbitrary(1,18446744073709551615),
       "workgroups" : getRandomArbitrary(1,128),
@@ -53,7 +53,7 @@ var bool2str = (value: boolean) => {
       "else_chance" : getRandomArbitrary(0, 100),
       "block_max_stmts" : getRandomArbitrary(2, 100),
       "block_max_nest_level" : 3,
-      "oob_pct" : checked == false ? 0 : getRandomArbitrary(0, 100),
+      "oob_pct" : getRandomArbitrary(0, 100),
       "max_loop_iter" : 10,
       "data_buf_size" : getRandomArbitrary(256, 1048756), // up to 1 MB
       "pattern_slots": getRandomArbitrary(0, 10),
@@ -205,7 +205,7 @@ const ParameterBox = forwardRef((props, _ref: any) => {
               <Spacer y={0.5}/>
               <Button onPress={() => {setParameter(parameter_presets.stress)}}> Stress </Button>
               <Spacer y={0.5}/>
-              <Button onPress={() => {setParameter(random(true))}}> Random </Button>
+              <Button onPress={() => {setParameter(random())}}> Random </Button>
 
           </Grid>
           <Card.Divider />
@@ -252,7 +252,6 @@ export default function Home() {
   let [username, setName] = useState("");
   let [email, setEmail] = useState("");
   let [mismatches, setMismatches] = useState("");
-  let [checked, setChecked] = React.useState(false);
   let [selected, setSelected] = React.useState<Set<string>>(new Set(["nonzero"]));
 
   const selectedValue = React.useMemo(
@@ -286,8 +285,8 @@ export default function Home() {
     parameterRef.current.setParameters()(parameters);
   }
 
-  const setRandom = (checked: any) => {
-    let parameters = random(checked);
+  const setRandom = () => {
+    let parameters = random();
     setParameterState(parameters);
 
     return parameters;
@@ -326,7 +325,7 @@ export default function Home() {
     return data;
   }
   
-  const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }, submit: boolean) => {
+  const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }) => {
     stop.current = false;
 
     let gpuInfo = await getGPUInfo();
@@ -337,7 +336,7 @@ export default function Home() {
     let total = 0;
     let non_zero_total = 0; 
     let uninit_total = 0;
-    let arr = [];
+    //let arr = [];
     let show_arr: any = {
       non_zero: [],
       uninit: [],
@@ -347,22 +346,23 @@ export default function Home() {
         break;
       }
       try {
-        let arr_safe : any = await run_shader(shader.safe, parameters);
-        await delay(50);
+        // NOTE: disabling safe shader for now because we are only interested in pattern
+        //let arr_safe : any = await run_shader(shader.safe, parameters);
+        //await delay(50);
         let arr_race : any = await run_shader(shader.race, parameters);  
         await delay(50);
 
         setElapsed(100 * (i + 1) / reps);
 
-        let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
+        //let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
         let pattern_result = pattern_analyze(arr_race[4]);
-        let uninit_result = uninit_anaylze(arr_race[1]);
-        arr.push(...result);
-        total += result.length;
+        //let uninit_result = uninit_anaylze(arr_race[1]);
+        //arr.push(...result);
+        //total += result.length;
         non_zero_total += pattern_result.length;
-        uninit_total += uninit_result.length;
+        //uninit_total += uninit_result.length;
         show_arr.non_zero.push(...pattern_result);
-        show_arr.uninit.push(...uninit_result);
+        //show_arr.uninit.push(...uninit_result);
         setMismatches(JSON.stringify(show_arr));
       } catch (e) {
         i-=1;
@@ -373,7 +373,7 @@ export default function Home() {
     }
 
     // only submit interesting results to database
-    if (total + non_zero_total + uninit_total > 0 || submit) {
+    if (total + non_zero_total + uninit_total > 0) {
       const requestOptions = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -396,7 +396,7 @@ export default function Home() {
       }
     }
 
-    addRow(i, total, arr, non_zero_total, uninit_total);
+    addRow(i, total, [], non_zero_total, uninit_total);
     
     return {
       "parameters" : parameters
@@ -405,7 +405,6 @@ export default function Home() {
 
   const runRandom = async () => {
     let i = rows.length + 1;
-    var submit = true; // submit results on the first run to get GPU info
     // track this fuzzing session
     let gpuInfo = await getGPUInfo();
     console.log(gpuInfo)
@@ -439,11 +438,11 @@ export default function Home() {
     console.log("Fuzzing session id: " + _id)
 
     while(true) {
-      let parameters_x = setRandom(checked);
+      let parameters_x = setRandom();
 
       let shaders_x = await getShader(parameters_x);
 
-      let obj = await runShader(i, parameters_x, shaders_x, submit);
+      let obj = await runShader(i, parameters_x, shaders_x);
 
       // update tracking of this fuzzing session
       const requestOptions = {
@@ -466,7 +465,6 @@ export default function Home() {
       if (stop.current === true) {
 	      return;
       }
-      submit = false;
     }
   }
 
@@ -560,12 +558,6 @@ export default function Home() {
     }
   }
 
-
-  const handleChange = () => {
-    stop.current = true;
-    setChecked(!checked);
-  };
-
   return (
     <Container>
       <Row >
@@ -573,7 +565,7 @@ export default function Home() {
           textGradient: "75deg, $yellow600 -20%, $red600 100%",
           "text-size-adjust": "80%"
         }}>
-            WebGPU Data Race Safety Testing
+            WGSLMemSmith
         </Text>
       </Row>
       <Spacer y={2}/>
@@ -606,19 +598,14 @@ export default function Home() {
             <Spacer x={0.5}/>
 
             <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
-            <Spacer x={0.5}/>
-            <Spacer y = {0.5}/>
-            <Checkbox label="Enable Out of Bounds Accesses" onChange={handleChange}> 
-
-            </Checkbox>
           </Row>
           <Spacer y={0.5}/>
           <Row>
-            <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}, false); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
+            <Button css={{"background" : "#03c03c"}} onPress={async () => {await runShader(rows.length + 1, getParameterState(), {...shaders.shaders}); stop.current = true;}} disabled={shaders.shaders.safe.length == 0}> Run </Button>
             <Spacer x={0.5}/>
             <Button onPress={() => {getShader(getParameterState())}}> Get Shader </Button>
             <Spacer x={0.5}/>
-            <Button onPress={() => {runRandom()}}> Run Random </Button>
+            <Button onPress={() => {runRandom()}}> Fuzz </Button>
           </Row>
           <Spacer y={0.5}/>
           <Row>
