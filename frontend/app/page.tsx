@@ -1,6 +1,6 @@
  'use client';
 
-import { Card, Text, Button, Grid, Input, Spacer, Container, Row, Col, Radio, Textarea, Progress, Checkbox, Dropdown} from '@nextui-org/react';
+import { Card, Text, Button, Grid, Input, Spacer, Link, Container, Row, Col, Radio, Textarea, Progress, Checkbox, Dropdown} from '@nextui-org/react';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { run_shader, check_gpu } from './shader';
 import { analyze, pattern_analyze } from './analyze_results';
@@ -53,7 +53,7 @@ var bool2str = (value: boolean) => {
       "else_chance" : getRandomArbitrary(0, 100),
       "block_max_stmts" : getRandomArbitrary(2, 100),
       "block_max_nest_level" : 3,
-      "oob_pct" : getRandomArbitrary(0, 100),
+      "oob_pct" : 0, // turn off oob because we know clamping causes data races
       "max_loop_iter" : 10,
       "data_buf_size" : getRandomArbitrary(256, 1048756), // up to 1 MB
       "pattern_slots": getRandomArbitrary(0, 10),
@@ -336,7 +336,7 @@ export default function Home() {
     let total = 0;
     let non_zero_total = 0; 
     let uninit_total = 0;
-    //let arr = [];
+    let arr = [];
     let show_arr: any = {
       non_zero: [],
       uninit: [],
@@ -346,23 +346,21 @@ export default function Home() {
         break;
       }
       try {
-        // NOTE: disabling safe shader for now because we are only interested in pattern
-        //let arr_safe : any = await run_shader(shader.safe, parameters);
-        //await delay(50);
-        let arr_race : any = await run_shader(shader.race, parameters);  
+        let arr_safe : any = await run_shader(shader.safe, parameters);
         await delay(50);
+        let arr_race : any = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
 
-        //let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
+        let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
         let pattern_result = pattern_analyze(arr_race[4]);
-        //let uninit_result = uninit_anaylze(arr_race[1]);
-        //arr.push(...result);
-        //total += result.length;
+        let uninit_result = uninit_anaylze(arr_race[1]);
+        arr.push(...result);
+        total += result.length;
         non_zero_total += pattern_result.length;
-        //uninit_total += uninit_result.length;
+        uninit_total += uninit_result.length;
         show_arr.non_zero.push(...pattern_result);
-        //show_arr.uninit.push(...uninit_result);
+        show_arr.uninit.push(...uninit_result);
         setMismatches(JSON.stringify(show_arr));
       } catch (e) {
         i-=1;
@@ -596,8 +594,8 @@ export default function Home() {
             <Spacer x={0.5}/>
             <Input label="Email (Optional)" type="text" value={email} onChange={e => {setEmail(e.target.value)}}  />
             <Spacer x={0.5}/>
-
             <Input label="Iterations" type="number" value={reps} onChange={e => {setReps(Number(e.target.value))}}  />
+            <Spacer x={0.5}/>
           </Row>
           <Spacer y={0.5}/>
           <Row>
@@ -612,7 +610,14 @@ export default function Home() {
             <Button css={{"background" : "#ff0000"}} onPress={() => {stop.current = true}} disabled={stop.current}> Stop </Button>
             <Spacer x={0.5}/>
           </Row>
-	  
+        </Col>
+        <Spacer x={1}/>
+        <Col>
+	        <Text>
+            Disclaimer: This research project involves the collection of anonymous hardware data. Including your GPU model, etc.
+            No personally identifiable information will be gathered without your permission. Your participation is voluntary.
+            If you have any questions or concerns, please reach out to us at <Link href="https://users.soe.ucsc.edu/~tsorensen/"> https://users.soe.ucsc.edu/~tsorensen/</Link>. Thank you for contributing to our research efforts.
+          </Text>
         </Col>
         <Spacer x={1}/>
         <Col>
@@ -703,12 +708,6 @@ export default function Home() {
         rowsPerPage={20}
       />
       </Table>
-      <Spacer y={2}/>
-      <Text>
-      Disclaimer: This research project involves the collection of anonymous hardware data. Including your GPU model, etc.
-      No personally identifiable information will be gathered. Your participation is voluntary.
-      If you have any questions or concerns, please reach out to us at <a href="https://users.soe.ucsc.edu/~tsorensen/"> https://users.soe.ucsc.edu/~tsorensen/ </a>. Thank you for contributing to our research efforts.
-      </Text>
       <Spacer y={2}/>
   </Container>
   )
