@@ -101,9 +101,9 @@ struct FuzzingInfo {
 fn start_fuzzing(data: Json<FuzzingInfo>) -> Json<FuzzingID> {
     let conn = Connection::open("./outcomes/outcomes.db").unwrap();
     conn.execute(
-        "INSERT INTO tracking (ITERATIONS, GLVENDOR, GLRENDERER, OSMOBILE, WEBGPUVENDOR, WEBGPUARCH, WEBGPUDEVICE, WEBGPUDESC, BROWSERVENDOR, BROWSERVERSION, OSVENDOR, OSVERSION) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO tracking (ITERATIONS, OSMOBILE, GLVENDOR, GLRENDERER, WEBGPUVENDOR, WEBGPUARCH, WEBGPUDEVICE, WEBGPUDESC, BROWSERVENDOR, BROWSERVERSION, OSVENDOR, OSVERSION) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         (1,
-        &data.os_mobile,
+         &data.os_mobile,
          &data.gl_vendor,
          &data.gl_renderer,
          &data.webgpu_vendor,
