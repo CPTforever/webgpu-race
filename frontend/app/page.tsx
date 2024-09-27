@@ -194,6 +194,8 @@ const ParameterBox = forwardRef((props, _ref: any) => {
             <Radio value="Modulo">Modulo By Zero</Radio>
             <Radio value="DivideMin">Divide By Int Min</Radio>
             <Radio value="ModuloMin">Modulo By Int Min</Radio>
+            <Radio value="ControlFlow">Control Flow</Radio>
+
           </Radio.Group>
         </Grid>
       </Card.Body>
