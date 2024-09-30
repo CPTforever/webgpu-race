@@ -35,6 +35,7 @@ struct Options {
     else_chance: u32,
     race_val_strat: String,
     pattern_weights: String,
+    pattern_mem_weights: String,
     data_buf_size: u32,
     pattern_slots: u32,
     reg_pressure: bool
@@ -249,14 +250,16 @@ fn post_shader(settings: Json<Options>) -> Json<ShaderResponse> {
         pattern_weights: match settings.pattern_weights.as_str() {
             "Default" => (50, 5, 5, 5, 5, 5, 5, 20),
             "Basic" => (100, 0, 0, 0, 0, 0, 0, 0),
-            "IntMult" => (0, 100, 0, 0, 0, 0, 0, 0),
-            "IntAdd" => (0, 0, 100, 0, 0, 0, 0, 0),
-            "Divide" => (0, 0, 0, 100, 0, 0, 0, 0),
-            "Modulo" => (0, 0, 0, 0, 100, 0, 0, 0),
-            "DivideMin" => (0, 0, 0, 0, 0, 100, 0, 0),
-            "ModuloMin" => (0, 0, 0, 0, 0, 0, 100, 0),
+            "UndefArith" => (0, 16, 16, 17, 17, 17, 17, 0),
             "ControlFlow" => (0, 0, 0, 0, 0, 0, 0, 100),
             _ => (50, 5, 5, 5, 5, 5, 5, 20)
+        },
+        pattern_mem_weights: match settings.pattern_mem_weights.as_str() {
+          "Default" => (50, 30, 20),
+          "Private" => (100, 0, 0),
+          "Workgroup" => (0, 100, 0),
+          "Device" => (0, 0, 100),
+          _ => (50, 30, 20)
         },
         oob_pct: settings.oob_pct,
         pattern_slots: settings.pattern_slots,

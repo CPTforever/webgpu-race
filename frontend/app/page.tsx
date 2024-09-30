@@ -50,6 +50,7 @@ var bool2str = (value: boolean) => {
       "constant_locs" : getRandomArbitrary(1, 16),
       "race_val_strat" : Math.random() > 0.5 ? "None" : "Even",
       "pattern_weights" : "Default", // leave weights to default for random testing
+      "pattern_mem_weights" : "Default", // leave weights to default for random testing
       "else_chance" : getRandomArbitrary(0, 100),
       "block_max_stmts" : getRandomArbitrary(2, 100),
       "block_max_nest_level" : 3,
@@ -78,6 +79,7 @@ var bool2str = (value: boolean) => {
       "constant_locs" : 16,
       "race_val_strat" : "None",
       "pattern_weights" : "Default",
+      "pattern_mem_weights" : "Default",
       "block_max_stmts" : 4,
       "block_max_nest_level" : 1,
       "oob_pct" : 0,
@@ -101,6 +103,7 @@ var bool2str = (value: boolean) => {
       "constant_locs" : 160,
       "race_val_strat" : "Even",
       "pattern_weights" : "Default",
+      "pattern_mem_weights" : "Default",
       "else_chance" : 50,
       "block_max_stmts" : 50,
       "block_max_nest_level" : 3,
@@ -188,14 +191,14 @@ const ParameterBox = forwardRef((props, _ref: any) => {
           <Radio.Group label="Pattern Weights" value={parameters.pattern_weights} onChange={e => {setParameter({...parameters, "pattern_weights" : e})}}>
             <Radio value="Default">Default</Radio>
             <Radio value="Basic">Basic</Radio>
-            <Radio value="IntMult">Integer Overflow Multiplication</Radio>
-            <Radio value="IntAdd">Integer Overflow Addition</Radio>
-            <Radio value="Divide">Divide By Zero</Radio>
-            <Radio value="Modulo">Modulo By Zero</Radio>
-            <Radio value="DivideMin">Divide By Int Min</Radio>
-            <Radio value="ModuloMin">Modulo By Int Min</Radio>
+            <Radio value="UndefArith">Undefined Arithmetic</Radio>
             <Radio value="ControlFlow">Control Flow</Radio>
-
+          </Radio.Group>
+          <Radio.Group label="Pattern Memory Weights" value={parameters.pattern_mem_weights} onChange={e => {setParameter({...parameters, "pattern_mem_weights" : e})}}>
+            <Radio value="Default">Default</Radio>
+            <Radio value="Private">Private</Radio>
+            <Radio value="Workgroup">Workgroup</Radio>
+            <Radio value="Device">Device</Radio>
           </Radio.Group>
         </Grid>
       </Card.Body>
