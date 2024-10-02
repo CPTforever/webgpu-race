@@ -312,6 +312,23 @@ export default function Home() {
     }]);
   }
 
+  async function fetchWithRetry(url: string, options: any, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          throw new Error(`Error! status: ${response.status}`);
+        }
+        return response; // Return response if successful
+      } catch (error) {
+        if (i === retries - 1) {
+          throw error; // Throw error if all retries fail
+        }
+        console.log(`Retrying... (${i + 1}/${retries})`);
+      }
+    }
+  }
+
   const getShader = async(parameters: any) => {
     let key: string = "";
     setParameters(parameters);
@@ -320,6 +337,12 @@ export default function Home() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parameters)
     };
+    try {
+      const response = await fetchWithRetry(process.env.NEXT_PUBLIC_RACE_API + "/shader", requestOptions);
+      // Handle the response here
+    } catch (error) {
+      console.error('Fetch failed after multiple attempts:', error);
+    }
     const response = await fetch(process.env.NEXT_PUBLIC_RACE_API + "/shader", requestOptions);
     if (!response.ok) {
       throw new Error(`Error! status: ${response.status}`);
