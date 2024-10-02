@@ -343,6 +343,7 @@ export default function Home() {
     let uninit_total = 0;
     let arr = [];
     let show_arr: any = {
+      mismatches: [],
       non_zero: [],
       uninit: [],
     };
@@ -364,6 +365,7 @@ export default function Home() {
         total += result.length;
         non_zero_total += pattern_result.length;
         uninit_total += uninit_result.length;
+        show_arr.mismatches.push(...result);
         show_arr.non_zero.push(...pattern_result);
         show_arr.uninit.push(...uninit_result);
         setMismatches(JSON.stringify(show_arr));

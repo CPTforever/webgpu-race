@@ -26,7 +26,8 @@ export function analyze(safe_array, race_array, parameters, data_race_info, rep)
         for (let offset = 0; offset < parameters.locs_per_thread; offset++) {
             let index  = (thread_id * parameters.locs_per_thread) + offset + data_race_info.constant_locs;
 
-            if (data_race_info.safe.includes(offset) && safe_array[index] != race_array[index])  {
+            // check if there's a mismatch between safe/racy. Discard 0s since the racy shader might have crashed
+            if (data_race_info.safe.includes(offset) && safe_array[index] != race_array[index] && race_array[index] != 0)  {
                 mismatches.push({
                     rep: rep,
                     thread: thread_id,
