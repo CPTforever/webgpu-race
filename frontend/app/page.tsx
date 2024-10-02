@@ -325,6 +325,7 @@ export default function Home() {
           throw error; // Throw error if all retries fail
         }
         console.log(`Retrying... (${i + 1}/${retries})`);
+        await delay(100);
       }
     }
   }
