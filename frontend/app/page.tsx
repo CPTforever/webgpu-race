@@ -356,6 +356,12 @@ export default function Home() {
   
   const runShader = async (i: number, parameters: any, shader: { safe: any; race: any; info: any; }) => {
     stop.current = false;
+    console.log("// Safe Shader")
+    console.log(shader.safe)
+    console.log("// Racy Shader")
+    console.log(shader.race)
+    console.log("// Info")
+    console.log(shader.info)
 
     let gpuInfo = await getGPUInfo();
     if (!check_gpu()) {
