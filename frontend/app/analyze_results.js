@@ -1,7 +1,8 @@
 export function analyze(safe_array, race_array, parameters, data_race_info, rep) {
     let mismatches = [];
     for (let const_index = 0; const_index < parameters.constant_locs; const_index+=1) {
-        if (data_race_info.safe_constants.includes(const_index) && safe_array[const_index] != race_array[const_index]) {
+        // don't include 0 values
+        if (data_race_info.safe_constants.includes(const_index) && safe_array[const_index] != race_array[const_index] && race_array[const_index] != 0) {
             mismatches.push({
                 rep: rep,
                 thread: null,
@@ -50,11 +51,12 @@ export function analyze(safe_array, race_array, parameters, data_race_info, rep)
     return mismatches;
 }
 
-export function pattern_analyze(array) {
+export function pattern_analyze(array, pattern_slots) {
     let non_zero = [];
     for (let i = 1; i < array.length; i+=2) {
+        let pattern_slot = ((i - 1)/2) % pattern_slots;
         if (array[i] != 0) {
-            non_zero.push([array[i-1], array[i]]); // this result uses index/data pairs, where the index is the even element and the data is the odd element
+            non_zero.push([pattern_slot, array[i-1], array[i]]); // this result uses index/data pairs, where the index is the even element and the data is the odd element. First element is the pattern slot.
         }
     }
 

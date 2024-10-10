@@ -50,8 +50,8 @@ export async function run_shader(shader, shader_info) {
     }
 
     const unit_arr = new Uint8Array(shader_info.workgroup_size * shader_info.workgroups * shader_info.uninit_vars * 4);
-    let index_size = shader_info.workgroup_size * shader_info.workgroups * 4 * 5;
-    let output_size = shader_info.workgroup_size * shader_info.workgroups * 4 * 5 * 2;
+    let index_size = shader_info.workgroup_size * shader_info.workgroups * 4 * shader_info.pattern_slots;
+    let output_size = shader_info.workgroup_size * shader_info.workgroups * 4 * shader_info.pattern_slots * 2;
 
     const index_arr = new Uint8Array(index_size);
     const data_arr = new Uint8Array(256 * 4);

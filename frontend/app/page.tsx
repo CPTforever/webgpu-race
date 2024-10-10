@@ -37,8 +37,8 @@ var bool2str = (value: boolean) => {
   const random = () => {
     return {
       "seed" : getRandomArbitrary(1,18446744073709551615),
-      "workgroups" : getRandomArbitrary(1,128),
-      "workgroup_size" : getRandomArbitrary(1,128),
+      "workgroups" : getRandomArbitrary(1,64),
+      "workgroup_size" : getRandomArbitrary(1,64),
       "racy_loc_pct" : getRandomArbitrary(0,100),
       "racy_constant_loc_pct" : getRandomArbitrary(0, 100),
       "racy_var_pct" : getRandomArbitrary(0, 100),
@@ -258,6 +258,8 @@ export default function Home() {
   let [email, setEmail] = useState("");
   let [mismatches, setMismatches] = useState("");
   let [selected, setSelected] = React.useState<Set<string>>(new Set(["nonzero"]));
+  let [checkProp2, setCheckProp2] = useState(true);
+  let [submitResults, setSubmitResults] = useState(true);
 
   const selectedValue = React.useMemo(
     () => Array.from(selected).join(", ").replaceAll("_", " "),
@@ -312,7 +314,8 @@ export default function Home() {
     }]);
   }
 
-  async function fetchWithRetry(url: string, options: any, retries = 3) {
+  async function fetchWithRetry(url: string, options: any, retries = 9) {
+    var backoff = 50;
     for (let i = 0; i < retries; i++) {
       try {
         const response = await fetch(url, options);
@@ -325,7 +328,8 @@ export default function Home() {
           throw error; // Throw error if all retries fail
         }
         console.log(`Retrying... (${i + 1}/${retries})`);
-        await delay(100);
+        await delay(backoff);
+        backoff = backoff * 2;
       }
     }
   }
@@ -382,14 +386,19 @@ export default function Home() {
         break;
       }
       try {
-        let arr_safe : any = await run_shader(shader.safe, parameters);
+        var arr_safe : any = [];
+        if (checkProp2) {
+          arr_safe = await run_shader(shader.safe, parameters);
+        }
         await delay(50);
         let arr_race : any = await run_shader(shader.race, parameters);  
 
         setElapsed(100 * (i + 1) / reps);
-
-        let result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
-        let pattern_result = pattern_analyze(arr_race[4]);
+        var result : any = [];
+        if (checkProp2) {
+          result = analyze(arr_safe[0], arr_race[0], parameters, shader.info, i);
+        }
+        let pattern_result = pattern_analyze(arr_race[4], parameters["pattern_slots"]);
         let uninit_result = uninit_anaylze(arr_race[1]);
         arr.push(...result);
         total += result.length;
@@ -408,7 +417,7 @@ export default function Home() {
     }
 
     // only submit interesting results to database
-    if (total + non_zero_total + uninit_total > 0) {
+    if (total + non_zero_total + uninit_total > 0 && submitResults) {
       const requestOptions = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -612,7 +621,13 @@ export default function Home() {
           <Col> 
 
           <Row>
-            <Textarea rows={18} cols={100} label="Shader" placeholder="Shader" readOnly value={shaders.shaders.race} />
+            <Textarea rows={18} cols={100} label="Shader" placeholder="Shader" value={shaders.shaders.race} onChange={(e) => setShaders({
+    ...shaders,
+    shaders: {
+      ...shaders.shaders,
+      race: e.target.value
+    }
+  })} />
           </Row>
           <Spacer y={1}/>
 
@@ -646,6 +661,9 @@ export default function Home() {
           <Row>
             <Button css={{"background" : "#ff0000"}} onPress={() => {stop.current = true}} disabled={stop.current}> Stop </Button>
             <Spacer x={0.5}/>
+            <Checkbox label="Check Property 2" isSelected={checkProp2} onChange={() => setCheckProp2(!checkProp2)}></Checkbox>
+            <Checkbox label="Submit Results" isSelected={submitResults} onChange={() => setSubmitResults(!submitResults)}></Checkbox>
+
           </Row>
         </Col>
         <Spacer x={1}/>

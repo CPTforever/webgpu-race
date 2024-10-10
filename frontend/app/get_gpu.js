@@ -13,7 +13,7 @@ export default async function getGPUInfo() {
       isMobile = userAgentData.mobile;
     }
     const gpuAdapter = await navigator.gpu.requestAdapter();
-    const adapterInfo = await gpuAdapter.requestAdapterInfo();
+    const adapterInfo = gpuAdapter.info;
     const gl = document.createElement('canvas').getContext('webgl');
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     let glVendor = "";
