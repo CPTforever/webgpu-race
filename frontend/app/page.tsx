@@ -621,7 +621,17 @@ export default function Home() {
           <Col> 
 
           <Row>
-            <Textarea rows={18} cols={100} label="Shader" placeholder="Shader" value={shaders.shaders.race} onChange={(e) => setShaders({
+            <Textarea rows={18} cols={100} label="Safe Shader" placeholder="Safe Shader" value={shaders.shaders.safe} onChange={(e) => setShaders({
+    ...shaders,
+    shaders: {
+      ...shaders.shaders,
+      safe: e.target.value
+    }
+  })} />
+          </Row>
+          <Spacer y={1}/>
+          <Row>
+            <Textarea rows={18} cols={100} label="Racy Shader" placeholder="Racy Shader" value={shaders.shaders.race} onChange={(e) => setShaders({
     ...shaders,
     shaders: {
       ...shaders.shaders,

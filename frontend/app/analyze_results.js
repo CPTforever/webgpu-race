@@ -37,15 +37,15 @@ export function analyze(safe_array, race_array, parameters, data_race_info, rep)
                     actual: race_array[index]
                 })
             }
-            if (parameters.race_val_strat == "Even" && race_array[index] % 2 != 0) {
-                mismatches.push({
-                    rep: rep,
-                    thread: thread_id,
-                    index: index,
-                    expected: "Even",
-                    actual: race_array[index]
-                })
-            } 
+//            if (parameters.race_val_strat == "Even" && race_array[index] % 2 != 0) {
+//                mismatches.push({
+//                    rep: rep,
+//                    thread: thread_id,
+//                    index: index,
+//                    expected: "Even",
+//                    actual: race_array[index]
+//                })
+//            } 
         }
     }
     return mismatches;
